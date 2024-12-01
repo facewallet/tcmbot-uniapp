@@ -311,7 +311,7 @@ async def echo():
     dialogue.forms.append(dialogue_form)
 
     return dialogue
-# 启动应用
+# 启动应用2
 if __name__ == "__main__":
     intentService.do_recall()
 
