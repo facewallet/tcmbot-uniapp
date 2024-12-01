@@ -1,71 +1,58 @@
 <template>
-  <view class="content">
-    <image class="logo" src="/static/logo.png"></image>
-    <view class="text-area">
-      <text class="title">{{ title }}</text>
+    <view>
+        <button @click="sendMessage">发送消息</button>
     </view>
-    <text>{{ response }}</text> <!-- 添加一个文本标签来显示响应数据 -->
-  </view>
 </template>
 
 <script>
 export default {
-  data() {
-    return {
-      title: 'Hello SuanSuan2',
-      response: '2' // 添加一个属性来存储响应数据
-    };
-  },
-  onLoad() {
-    this.fetchData(); // 在页面加载时调用 fetchData 方法
-  },
-  methods: {
-    fetchData() {
-      uni.request({
-        url: '/api/pub/echo', // 请求的URL
-        method: 'GET', // 请求方法，根据实际情况选择GET或POST
-        success: (res) => {
-          // 请求成功后的处理
-          if (res.statusCode === 200) {
-            this.response = res.data;
-          } else {
-            console.error('请求失败', res);
-          }
-        },
-        fail: (err) => {
-          // 请求失败后的处理
-          console.error('请求失败', err);
+    data() {
+        return {
+            websocket: null
         }
-      });
+    },
+    onShow() {
+        this.connectWebSocket();
+    },
+    methods: {
+        connectWebSocket() {
+            this.websocket = uni.connectSocket({
+                url: 'ws://localhost:8086/api/socket/dialogue',
+                success() {
+                    console.log('WebSocket连接成功');
+                }
+            });
+
+            this.websocket.onOpen(() => {
+                console.log('WebSocket连接已打开');
+            });
+
+            this.websocket.onMessage((message) => {
+                console.log('收到服务器内容：' + message.data);
+            });
+
+            this.websocket.onError((error) => {
+                console.log('WebSocket连接打开失败，请检查！', error);
+            });
+
+            this.websocket.onClose(() => {
+                console.log('WebSocket 已关闭！');
+            });
+        },
+        sendMessage() {
+			const dialogue = {
+				"speaker": "user",
+				"type": "text",
+				"content": "你的消息"
+			}
+            this.websocket.send({
+                data: JSON.stringify(dialogue),
+                success() {
+                    console.log('消息发送成功');
+                }
+			})
+
+        }
     }
-  }
-};
+}
 </script>
-
-<style>
-.content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.logo {
-  height: 200rpx;
-  width: 200rpx;
-  margin-top: 200rpx;
-  margin-left: auto;
-  margin-right: auto;
-  margin-bottom: 50rpx;
-}
-
-.text-area {
-  display: flex;
-  justify-content: center;
-}
-
-.title {
-  font-size: 36rpx;
-  color: #8f8f94;
-}
-</style>
