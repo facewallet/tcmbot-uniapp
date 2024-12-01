@@ -72,6 +72,7 @@ slotService = SlotService()
 worker = SnowflakeIdWorker(worker_id=1, data_center_id=1)
 @app.post("/dss/dialogue")
 async def do_dialogue(dialogue: Dialogue):
+    # todo uuid 生成一个user_id
     print(dialogue)
     success_message = Message().success()
     fail_message = Message().fail()
@@ -251,9 +252,22 @@ async def do_dialogue(dialogue: Dialogue):
                 #     success_message.add_data("dialogue", clone_dialogue)
                 #     return success_message
             elif DO_SLOT_FILL == dialogue.bot_intent:
+                session_id = dialogue.session_id
+                tree_id = dialogue.tree_id
+                node_id = dialogue.node_id
                 forms = dialogue.forms
                 # todo dialogue_form绑定的是slot_id，前面要绑定才行
-                # todo 遍历，然后判断 dialogue_form.value是否一致，如果都一直，则 如果不一致，则
+                # todo 遍历forms，dialogue_form的id 为slot_id ， dialogue_form.label为slot_name， dialogue_form.value为slot_value，
+                # todo 调用DecisionUserSlotDAO插入
+                #  调用 DecisionSlotMappingDAO 里面的条件查询，获取当前DecisionSlotMapping对象
+                #  如果slot_value和DecisionSlotMapping中的node_slot_value是否一致，
+                #  如果一致则将slot_name，slot_value存入到DecisionSlotMapping中的user开头的字段中，flag改为match
+                #  如果不一致，则conflict_num +1，并将对应的slot_id保存下来，
+                #  如果conflict_num == 0 则调用do_inference方法
+                #  如果conflict_num > 0 首先判断slot_id行上elsesay字段是否为空，如果不为空，则直接返回，如果都为空，
+                #  则重新计算相似度，获取当前tree上最相似的最相似的node，然后判断DecisionSlotMapping中是否已经存在session_id和node_id的，
+                #  如果存在则说明遇到环路了，返回fail_message，会话结束
+                #  如果不存在进入另一个node节点，重新做槽位填充和do_inference
                 dialogue_form = forms[0]
                 if "阳性" == dialogue_form.value:
                     clone_dialogue.type = TEXT
@@ -264,6 +278,10 @@ async def do_dialogue(dialogue: Dialogue):
                 success_message.add_data("dialogue", clone_dialogue)
                 return success_message
             elif DO_EDGE_SELECT == dialogue.bot_intent:
+                # todo 获取当前边对应的槽位，记录到用户槽位表中，
+                # todo 然后用户槽位和对应的节点做相似度计算，并存入Mapping表中，
+                # todo 判断是否做槽位填充
+                # todo 如果对应的槽位都在，则执行do_inference（要么选择边，要么选择给出答案）
                 pass
         # decision_dialogue = dialogue_2_decision_dialogue(dialogue)
         # decision_dialogue_dao = DecisionDialogueDAO()
