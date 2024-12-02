@@ -12,13 +12,13 @@ from dss.dao.node import DecisionNodeDAO
 from dss.dao.node_slot import DecisionNodeSlotDAO
 from dss.dao.slot_mapping import DecisionSlotMappingDAO
 from dss.dao.tree import DecisionTreeDAO
-from dss.dao.user_slot import DecisionUserSlotDAO
+from dss.dao.user_slot import DecisionUserSlotDAO, DecisionUserSlot
 from dss.domain.dialogue import Dialogue, dialogue_2_decision_dialogue
 from dss.domain.dialogue_form import dialogue_form_2_decision_dialogue_form, DialogueForm
 from dss.domain.message import Message
 from dss.service.slot_service import SlotService
 from dss.service.intent_service import IntentService
-from dss.service.similarity_service import do_slot_similarity
+from dss.service.similarity_service import do_slot_similarity, find_best_mapping, save_to_database
 from dss.util.medical_embedding_util import do_embedding_4_user_slot_list
 from dss.util.snowflake_util import SnowflakeIdWorker
 
@@ -164,6 +164,8 @@ async def do_dialogue(dialogue: Dialogue):
                         if result.need_fill == 'YES' and result.fill_method == 'boolean':
                             radio_form = DialogueForm()
                             radio_form.id = result.node_slot_id  #这是挂的是槽位ID，是对槽位的填充
+                            radio_form.slot_name = result.node_slot_name
+                            radio_form.slot_value = result.node_slot_value
                             radio_form.label = result.boolean_label
                             radio_form.type = RADIO
                             radio_options = []
@@ -235,32 +237,16 @@ async def do_dialogue(dialogue: Dialogue):
                         return success_message
 
                     pass
-                # if "1-1" == dialogue_form.value:
-                #     pass
-                # elif "2.槽位提取提示词-1" == dialogue_form.value:
-                #     clone_dialogue.type = FORM
-                #     clone_dialogue.bot_intent = DO_SLOT_FILL
-                #     forms = []
-                #     input_form = DialogueForm()
-                #     input_form.id = 132
-                #     input_form.label = "核酸"
-                #     input_form.placeholder = "请输入核酸结果"
-                #     input_form.type = TEXT
-                #     input_form.required = "true"
-                #     forms.append(input_form)
-                #     clone_dialogue.forms = forms
-                #     success_message.add_data("dialogue", clone_dialogue)
-                #     return success_message
+
             elif DO_SLOT_FILL == dialogue.bot_intent:
                 session_id = dialogue.session_id
                 tree_id = dialogue.tree_id
                 node_id = dialogue.node_id
                 forms = dialogue.forms
-                # todo dialogue_form绑定的是slot_id，前面要绑定才行
-                # todo 遍历forms，dialogue_form的id 为slot_id ， dialogue_form.label为slot_name， dialogue_form.value为slot_value，
-                # todo 调用DecisionUserSlotDAO插入
-                #  调用 DecisionSlotMappingDAO 里面的条件查询，获取当前DecisionSlotMapping对象
-                #  如果slot_value和DecisionSlotMapping中的node_slot_value是否一致，
+                #  遍历forms，dialogue_form的id 为slot_id ， dialogue_form.label为slot_name， dialogue_form.value为slot_value，
+                #  调用DecisionUserSlotDAO插入
+                #  调用 DecisionSlotMappingDAO 里面的条件查询，根据session_id，tree_id,node_id,slot_id，获取当前DecisionSlotMapping对象
+                #  判断slot_value和DecisionSlotMapping中的node_slot_value是否一致，
                 #  如果一致则将slot_name，slot_value存入到DecisionSlotMapping中的user开头的字段中，flag改为match
                 #  如果不一致，则conflict_num +1，并将对应的slot_id保存下来，
                 #  如果conflict_num == 0 则调用do_inference方法
@@ -268,34 +254,235 @@ async def do_dialogue(dialogue: Dialogue):
                 #  则重新计算相似度，获取当前tree上最相似的最相似的node，然后判断DecisionSlotMapping中是否已经存在session_id和node_id的，
                 #  如果存在则说明遇到环路了，返回fail_message，会话结束
                 #  如果不存在进入另一个node节点，重新做槽位填充和do_inference
-                dialogue_form = forms[0]
-                if "阳性" == dialogue_form.value:
-                    clone_dialogue.type = TEXT
-                    clone_dialogue.content = "推荐使用大青龙汤或者清肺排毒汤"
-                elif "2.槽位提取提示词-1" == dialogue_form.value:
-                    clone_dialogue.type = TEXT
-                    clone_dialogue.content = "核酸不符合，请按普通感冒治疗"
-                success_message.add_data("dialogue", clone_dialogue)
-                return success_message
+
+                # 假设 DecisionUserSlotDAO 和 DecisionSlotMappingDAO 已经定义并可以正常使用
+                # 假设 do_inference 和 calculate_similarity 是已经定义的函数
+
+                conflict_num = 0
+                conflict_slot_ids = []
+
+                for dialogue_form in forms:
+                    slot_id = dialogue_form.id
+                    slot_name = dialogue_form.label
+                    slot_value = dialogue_form.value
+
+                    # 插入用户槽位数据
+                    user_slot_dao = DecisionUserSlotDAO()
+                    user_slot = DecisionUserSlot()
+                    user_slot.user_id = dialogue.user_id
+                    user_slot.session_id = session_id
+                    user_slot.tree_id = tree_id
+                    user_slot.node_id = node_id
+                    user_slot.slot_id = slot_id
+                    user_slot.name = slot_name
+                    user_slot.value = slot_value
+
+                    user_slot_dao.add(user_slot)
+
+                    # 获取当前的 DecisionSlotMapping 对象
+                    slot_mapping_dao = DecisionSlotMappingDAO()
+                    slot_mapping = slot_mapping_dao.find_by_condition(session_id=session_id, tree_id=tree_id, node_id=node_id, slot_id=slot_id)
+
+                    # 判断 slot_value 和 DecisionSlotMapping 中的 node_slot_value 是否一致
+                    if slot_value == slot_mapping.node_slot_value:
+                        # 一致则更新 DecisionSlotMapping 中的用户字段和 flag
+                        slot_mapping.user_slot_name = slot_name
+                        slot_mapping.user_slot_value = slot_value
+                        slot_mapping.flag = 'match'
+                        slot_mapping_dao.update(slot_mapping)
+                    else:
+                        # 不一致则增加冲突计数并记录冲突的 slot_id
+                        conflict_num += 1
+                        conflict_slot_ids.append(slot_id)
+
+                        # 检查 elsesay 字段是否为空
+                        if slot_mapping.elsesay:
+                            return slot_mapping.elsesay
+
+                # 如果没有冲突，调用推理方法
+                if conflict_num == 0:
+                    # do_inference(session_id, tree_id, node_id)
+                    # todo 判断edge_list是否为空，如果为空则查询该调用node_dao类获取node信息，如果不为空则遍历edge_list
+                    # todo 判断该节点是否有子节点，如果有则让用户选边，如果该节点就是叶子节点，则直接返回solution
+                    # todo 如果有子节点，则调用do_edge_select
+                    edgeDAO = DecisionEdgeDAO()
+                    edge_list = edgeDAO.query_by_start_id(node_id)
+                    if not edge_list:  # 判断edge_list是否为空
+                        # 如果为空，则调用node_dao类获取node信息
+                        node_dao = DecisionNodeDAO()
+                        node_info = node_dao.get_by_id(node_id)
+                        if node_info.solution:
+                            # 处理node_info
+                            print("Node info:", node_info)
+                            clone_dialogue.type = TEXT
+                            clone_dialogue.content = node_info.solution
+                            clone_dialogue.bot_intent = FINISH_SESSION
+                            success_message.add_data("dialogue", clone_dialogue)
+                            return success_message
+
+                    else:
+                        forms = []
+                        radio_form = DialogueForm()
+                        radio_form.id = node_id
+                        radio_form.label = "请您选择"
+                        radio_form.type = RADIO
+                        radio_options = []
+                        # 如果不为空，则遍历edge_list
+                        for edge in edge_list:
+                            # 处理每个edge
+                            print("Edge:", edge)
+                            option = DialogueForm()
+                            option.id = edge.id
+                            option.label = edge.label
+                            option.value = edge.id
+                            radio_options.append(option)
+                        # do_agent_select  一个agent也让用户选择
+                        radio_form.options = radio_options
+                        forms.append(radio_form)
+                        clone_dialogue.forms = forms
+                        clone_dialogue.bot_intent = DO_EDGE_SELECT
+                        success_message.add_data("dialogue", clone_dialogue)
+                        return success_message
+                else:
+                    # 如果有冲突，重新计算相似度并获取最相似的节点
+                    treeDAO = DecisionTreeDAO()
+                    current_tree = treeDAO.get_by_id(tree_id)
+                    nodeSlotDAO = DecisionNodeSlotDAO()
+                    node_slot_list_list = nodeSlotDAO.get_node_slots_by_tree_id(tree_id)
+                    user_slot_list = user_slot_dao.find_by_condition(session_id=session_id)
+                    # similarity_dict_result = do_slot_similarity(user_slot_list, node_slot_list_list)
+                    best_mapping, best_node_slot_list, best_score, more_flag = find_best_mapping(user_slot_list,
+                                                                                                 node_slot_list_list)
+                    # best_matching_node =similarity_dict_result["best_node_slot_list"][0]
+                    new_node_id =best_node_slot_list[0].node_id
+                    slot_mapping_tmp = slot_mapping_dao.find_by_condition(session_id=session_id, tree_id=tree_id, node_id=new_node_id)
+                    # 检查 DecisionSlotMapping 中是否已经存在 session_id 和 node_id 的记录
+                    if slot_mapping_tmp:
+                        return fail_message
+                    else:
+                        save_to_database(best_mapping, user_slot_list, best_node_slot_list, 0.8, more_flag)
+                        # 进入另一个节点，重新做槽位填充和推理
+                        # 重新填充槽位和推理的代码...
+                        clone_dialogue.tree_id = tree_id
+                        clone_dialogue.node_id = new_node_id
+                        # todo 根据session_id，node_id和flag= node，node_slot_relation=have，required=YES的，调用
+                        flag = 'node'
+                        node_slot_relation = 'have'
+                        # required = 'YES'
+                        # required = required
+                        slotMappingDAO = DecisionSlotMappingDAO()
+                        # 调用条件查询方法
+                        results = slotMappingDAO.find_by_condition(
+                            session_id=session_id,
+                            node_id=new_node_id,
+                            flag=flag,
+                            node_slot_relation=node_slot_relation
+                        )
+
+                        # 判断结果是否为空
+                        if results:
+                            # 如果结果不为空，遍历结果
+                            clone_dialogue.type = FORM
+                            clone_dialogue.bot_intent = DO_SLOT_FILL
+                            forms = []
+                            for result in results:
+                                print(f"ID: {result.id}, Session ID: {result.session_id}, Node ID: {result.node_id}, "
+                                      f"Flag: {result.flag}, Node Slot Relation: {result.node_slot_relation}, Required: {result.required}")
+                                if result.need_fill == 'YES' and result.fill_method == 'boolean':
+                                    radio_form = DialogueForm()
+                                    radio_form.id = result.node_slot_id  # 这是挂的是槽位ID，是对槽位的填充
+                                    radio_form.slot_name = result.node_slot_name
+                                    radio_form.slot_value = result.node_slot_value
+                                    radio_form.label = result.boolean_label
+                                    radio_form.type = RADIO
+                                    radio_options = []
+                                    option_yes = DialogueForm()
+                                    # option_yes.id = tree_id
+                                    option_yes.label = result.boolean_yes_label
+                                    option_yes.value = result.boolean_yes_value
+                                    radio_options.append(option_yes)
+
+                                    option_no = DialogueForm()
+                                    # option_yes.id = tree_id
+                                    option_no.label = result.boolean_no_label
+                                    option_no.value = result.boolean_no_value
+                                    radio_options.append(option_no)
+
+                                    radio_form.options = radio_options
+                                    forms.append(radio_form)
+                            clone_dialogue.forms = forms
+                            if len(forms) == 0:
+                                return fail_message
+                            else:
+                                success_message.add_data("dialogue", clone_dialogue)
+                                return success_message
+
+                        else:
+                            # 如果结果为空，调用do_infer
+                            # do_infer()
+                            # 这时候没有必须要填充的槽位，则首先判断
+                            # todo 判断edge_list是否为空，如果为空则查询该调用node_dao类获取node信息，如果不为空则遍历edge_list
+                            # todo 判断该节点是否有子节点，如果有则让用户选边，如果该节点就是叶子节点，则直接返回solution
+                            # todo 如果有子节点，则调用do_edge_select
+                            edgeDAO = DecisionEdgeDAO()
+                            edge_list = edgeDAO.query_by_start_id(node_id)
+                            if not edge_list:  # 判断edge_list是否为空
+                                # 如果为空，则调用node_dao类获取node信息
+                                node_dao = DecisionNodeDAO()
+                                node_info = node_dao.get_by_id(node_id)
+                                if node_info.solution:
+                                    # 处理node_info
+                                    print("Node info:", node_info)
+                                    clone_dialogue.type = TEXT
+                                    clone_dialogue.content = node_info.solution
+                                    clone_dialogue.bot_intent = FINISH_SESSION
+                                    success_message.add_data("dialogue", clone_dialogue)
+                                    return success_message
+
+                            else:
+                                forms = []
+                                radio_form = DialogueForm()
+                                radio_form.id = node_id
+                                radio_form.label = "请您选择"
+                                radio_form.type = RADIO
+                                radio_options = []
+                                # 如果不为空，则遍历edge_list
+                                for edge in edge_list:
+                                    # 处理每个edge
+                                    print("Edge:", edge)
+                                    option = DialogueForm()
+                                    option.id = edge.id
+                                    option.label = edge.label
+                                    option.value = edge.id
+                                    radio_options.append(option)
+                                # do_agent_select  一个agent也让用户选择
+                                radio_form.options = radio_options
+                                forms.append(radio_form)
+                                clone_dialogue.forms = forms
+                                clone_dialogue.bot_intent = DO_EDGE_SELECT
+                                success_message.add_data("dialogue", clone_dialogue)
+                                return success_message
             elif DO_EDGE_SELECT == dialogue.bot_intent:
                 # todo 获取当前边对应的槽位，记录到用户槽位表中，
                 # todo 然后用户槽位和对应的节点做相似度计算，并存入Mapping表中，
                 # todo 判断是否做槽位填充
                 # todo 如果对应的槽位都在，则执行do_inference（要么选择边，要么选择给出答案）
+                forms = dialogue.forms
+                dialogue_form = forms[0]
+                slot_name = dialogue_form.slot_name
+                slot_value = dialogue_form.slot_value
+                new_node_id = dialogue_form.id # todo 获取当前节点 这个地方需要再排查
+                # todo 保存到user_slot表中
+                user_slot_dao = DecisionUserSlotDAO()
+                user_slot = DecisionUserSlot()
+                user_slot.session_id = clone_dialogue.session_id
+                user_slot.user_id = clone_dialogue.user_id
+                user_slot.name = slot_name
+                user_slot.value = slot_value
+                user_slot_dao.add(user_slot)
+                # todo 取出所有用户槽位和所有new_node_id对应的节点做相似度计算
+                # todo 重复上面的推理过程
                 pass
-        # decision_dialogue = dialogue_2_decision_dialogue(dialogue)
-        # decision_dialogue_dao = DecisionDialogueDAO()
-        # decision_dialogue_dao.add(decision_dialogue)
-        # if dialogue.forms:
-        #     for form in dialogue.forms:
-        #         # 调用转换函数并将结果添加到数据库
-        #         decision_dialogue_form = dialogue_form_2_decision_dialogue_form(form)
-        #         decision_dialogue_form_dao = DecisionDialogueFormDAO()
-        #         decision_dialogue_form_dao.add(decision_dialogue_form)
-        #
-        # dialogue.speaker = 'bot'
-        # dialogue.content = '我是DSS'
-        # message.add_data("dialogue",dialogue)
         else:
             return fail_message
         return success_message
@@ -311,7 +498,7 @@ async def echo():
     dialogue.forms.append(dialogue_form)
 
     return dialogue
-# 启动应用2
+# 启动应用
 if __name__ == "__main__":
     intentService.do_recall()
 
