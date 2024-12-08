@@ -1,0 +1,49 @@
+
+.container {
+  padding: 20px;
+}
+.form-group {
+  margin-bottom: 20px;
+}
+.label {
+  display: block;
+  margin-bottom: 5px;
+}
+.input-text,
+.input-password,
+.input-file {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.radio-group,
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+}
+.radio-label,
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  margin-right: 20px;
+  margin-bottom: 10px;
+}
+.radio-input,
+.checkbox-input {
+  margin-right: 5px;
+}
+.radio-text,
+.checkbox-text {
+  margin-left: 5px;
+}
+.submit-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #007aff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+}

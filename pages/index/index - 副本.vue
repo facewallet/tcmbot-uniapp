@@ -3,25 +3,23 @@
 		<!-- #ifdef H5 -->
 		<view v-if="isWidescreen" class="header">中医机器人Web版</view>
 		<!-- #endif -->
+		<!-- <text class="noData" v-if="msgList.length === 0">没有对话记录</text> -->
 		<scroll-view :scroll-into-view="scrollIntoView" scroll-y="true" class="msg-list" :enable-flex="true">
 			<view v-for="(dialogue, index) in dialogueList" :key="index" class="dialogue"
 				:class="{ 'bot-speak': dialogue.speaker === 'bot', 'user-speak': dialogue.speaker === 'user' }">
-				
-				<!-- <image :src="dialogue.speaker === 'bot'? '/static/bot.png' : '/static/user.png'" class="avatar" /> -->
-				<uni-icons v-if="dialogue.speaker === 'bot'" color="#ff5100" type="headphones" size="30"></uni-icons>
-				<uni-icons v-else color="#ff5100" type="contact" size="30"></uni-icons>
-				<view class="message" :style="{ backgroundColor: dialogue.speaker === 'user'? '#ffffff' : '#f8f8f8' }">
+				<image :src="dialogue.speaker === 'bot' ? '/static/bot.png' : '/static/user.png'" class="avatar" />
+				<view class="message" :style="{ backgroundColor: dialogue.speaker === 'user' ? '#ffffff' : '#f8f8f8' }">
 					<text v-if="dialogue.type === 'text'">{{ dialogue.content }}</text>
 					<form v-if="dialogue.type === 'form'" @submit="submitSocketForm(dialogue)">
-						<view v-for="formItem in dialogue.forms" :key="formItem.id" style="flex-direction: column;">
+						<view v-for="formItem in dialogue.forms" :key="formItem.id">
 							<label>{{formItem.label}}</label>
 							<input v-if="formItem.type === 'text' || formItem.type === 'password'" :type="formItem.type"
 								:placeholder="formItem.placeholder" v-model="formItem.value"
 								:required="formItem.required === 'true'" />
-							<radio-group style="flex-direction: column;" v-if="formItem.type === 'radio'"
-								@change="radioGroupChange($event,formItem)">
-								<label v-for="option in formItem.options" :key="option.id" class="radio-label">
-									<radio :value="option.value" :checked="formItem.value === option.value" />
+							<radio-group v-if="formItem.type === 'radio'" @change="radioGroupChange($event,formItem)">
+								<label v-for="option in formItem.options" :key="option.id">
+									<radio :value="option.value" :checked="formItem.value === option.value"
+										@change="radioChange(formItem, option.value)" style="color: #ff5100;" />
 									{{ option.label }}
 								</label>
 							</radio-group>
@@ -29,7 +27,7 @@
 								<label v-for="option in formItem.options" :key="option.id">
 									<checkbox :value="option.value"
 										:checked="formItem.values && formItem.values.includes(option.value)"
-										@change="checkboxChange(formItem, option.value)" />
+										@change="checkboxChange(formItem, option.value)" style="color: #ff5100;" />
 									{{ option.label }}
 								</label>
 							</checkbox-group>
@@ -55,39 +53,36 @@
 			<!-- #endif -->
 			<view class="foot-box-content">
 				<view v-if="!isWidescreen" class="menu">
-					<uni-icons class="menu-item" @click="setLLMmodel" color="#ff5100" size="20px"
-						type="bars"></uni-icons>
+					<uni-icons class="menu-item" @click="setLLMmodel" color="#555" size="20px"
+						type="settings"></uni-icons>
 				</view>
 				<view class="textarea-box">
 					<textarea v-model="inputMessage" :cursor-spacing="15" class="textarea" :auto-height="!isWidescreen"
 						placeholder="请输入要发给中医机器人的内容" :maxlength="-1" :adjust-position="false"
 						:disable-default-padding="false" placeholder-class="input-placeholder"></textarea>
 				</view>
-				<view class="send-btn-box" :title="(msgList.length && msgList.length%2!== 0)? 'ai正在回复中不能发送':''">
+				<view class="send-btn-box" :title="(msgList.length && msgList.length%2 !== 0) ? 'ai正在回复中不能发送':''">
 					<!-- #ifdef H5 -->
 					<text v-if="isWidescreen" class="send-btn-tip">↵ 发送 / shift + ↵ 换行</text>
 					<!-- #endif -->
-					<!-- <button @click="sendSocketMessage" class="send" type="primary">发送</button> -->
-					<uni-icons @click="sendSocketMessage" class="send" color="#ff5100" type="paperplane-filled" size="30"></uni-icons>
-
+					<button @click="sendSocketMessage" class="send" type="primary">发送</button>
 				</view>
 			</view>
 		</view>
-		<view class="model-popup" v-if="showModelPopup">
+		<view class="model-popup" v-if="showModelPopup"
+			:style="{ display: showModelPopup? 'flex' : 'none', justifyContent: 'center', alignItems: 'center' }">
 			<view class="popup-content">
-				<radio-group  class="radio-group" @change="radioChange">
+				<radio-group v-model="selectedModel">
 					<view class="option-item" v-for="(option, index) in modelOptions" :key="index">
-						<!-- <radio :value="option.value" /> -->
-						<radio :value="option.value" :disabled="option.disabled === 'YES'" :checked="option.value === this.llmModel" />
+						<radio :value="option.value" />
 						<text class="option-text">{{ option.name }}</text>
 					</view>
 				</radio-group>
-				<button @click="confirmModel" class="submit-button">确定</button>
+				<button @click="confirmModel">确定</button>
 			</view>
 		</view>
 	</view>
 </template>
-
 
 <script>
 	// 键盘的shift键是否被按下
@@ -117,34 +112,18 @@
 				// 当前屏幕是否为宽屏
 				isWidescreen: false,
 
+				// llmModel: false,
 				keyboardHeight: 0,
 				showLlmConfig: false, // 控制llm-config组件是否显示，初始为隐藏
-				llmModel: 'tcm-all',
+				llmModel: '',
 				showModelPopup: false, // 控制单选组件弹窗是否显示，初始为隐藏
 				modelOptions: [{
-					name: '全部模型',
-					value: 'tcm-all',checked: true,disabled: false
+					name: '选项1',
+					value: 'option1'
 				}, {
-					name: '中医大模型',
-					value: 'tcm-rag',checked: false,disabled: false
-				},
-				{
-					name: '中医小模型',
-					value: 'tcm-ner',checked: false,disabled: false
-				},
-				{
-					name: '中医知识图谱',
-					value: 'tcm-graphrag',checked: false,disabled: false
-				},
-				{
-					name: '中医智能体',
-					value: 'tcm-agent',checked: false,disabled: true
-				},{
-					name: '中医介子推',
-					value: 'tcm-jzt',checked: false,disabled: true
-				},
-				
-				], // 存储从接口获取的单选选项数据，格式如 [{name: '选项1', value: 'option1'},...]
+					name: '选项1',
+					value: 'option1'
+				}], // 存储从接口获取的单选选项数据，格式如 [{name: '选项1', value: 'option1'},...]
 				selectedModel: '' // 用于绑定单选按钮选中的值
 			}
 		},
@@ -196,8 +175,7 @@
 			// #endif
 		},
 		async mounted() {
-			this.fetchWelcome();
-			this.fetchChannel();
+			this.fetchData();
 			this.connectWebSocket();
 			// 获得之前设置的llmModel
 			this.llmModel = uni.getStorageSync('uni-ai-chat-llmModel')
@@ -379,9 +357,9 @@
 				this.inputMessage = '';
 			},
 
-			fetchWelcome() {
+			fetchData() {
 				uni.request({
-					url: 'http://localhost:8086/api/pub/dialogue/welcome',
+					url: '/api/pub/init/welcome',
 					success: (res) => {
 						console.log(res)
 						if (res.data.meta.code === 0) {
@@ -400,28 +378,12 @@
 					}
 				});
 			},
-			fetchChannel() {
-				uni.request({
-					url: 'http://localhost:8086/api/pub/dialogue/channel',
-					success: (res) => {
-						console.log(res)
-						if (res.data.meta.code === 0) {
-							const data = res.data.data;
-							this.modelOptions = data.channelList;
-						}
-					},
-					fail: (err) => {
-						console.error(err);
-					}
-				});
-			},
-			
-			// radioChange(formItem, value) {
-			// 	console.log(formItem)
-			// 	console.log('value=' + value)
-			// 	formItem.value = value;
+			radioChange(formItem, value) {
+				console.log(formItem)
+				console.log('value=' + value)
+				formItem.value = value;
 
-			// },
+			},
 			radioGroupChange(e, formItem) {
 				console.log('radioGroup' + formItem)
 				formItem.value = e.detail.value;
@@ -485,22 +447,15 @@
 
 			setLLMmodel() {
 				this.showModelPopup = true; // 点击设置按钮时，显示单选组件弹窗
-				
+				// this.getModelOptions(); // 调用接口获取单选选项数据
 			},
 			confirmModel() {
-				// this.llmModel = this.selectedModel; // 将选中的模型值赋给llmModel
-				console.log('Selected llmModel:', this.llmModel);
-				console.log('Selected selectedModel:', this.selectedModel);
+				this.llmModel = this.selectedModel; // 将选中的模型值赋给llmModel
 				this.showModelPopup = false; // 隐藏单选组件弹窗
 			},
 			// setLLMmodel() {
 			// 	this.showLlmConfig = true; // 点击设置按钮时，显示llm-config组件
 			// },
-			radioChange(e) {
-				// 当radio选项变化时，更新selectedModel的值
-				// this.selectedModel = e.detail.value;
-				this.llmModel = e.detail.value;
-			},
 			handleConfirm(modelValue) {
 				this.llmModel = modelValue; // 获取llm-config组件传递过来的值，并赋值给当前页面的llmModel
 				this.showLlmConfig = false; // 隐藏llm-config组件
@@ -552,8 +507,8 @@
 	}
 </script>
 
-<style>
-	/* #ifndef APP-NVGE */
+<style lang="scss">
+	/* #ifndef APP-NVUE */
 	page,
 	/* #ifdef H5 */
 	.container *,
@@ -582,6 +537,11 @@
 		height: 30px;
 		line-height: 30px;
 		margin: 0 auto;
+		justify-content: center;
+		margin-bottom: 15px;
+		/* #ifdef H5 */
+		cursor: pointer;
+		/* #endif */
 	}
 
 	.stop-responding:hover {
@@ -594,8 +554,7 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		position: relative;
-		/* 给父容器设置相对定位，作为model-popup定位的参照 */
+		// border: 1px solid blue;
 	}
 
 	.dialogue {
@@ -609,16 +568,18 @@
 		background-color: #f8f8f8;
 	}
 
-	.bot-speak.message {
+	.bot-speak .message {
 		background-color: #f8f8f8;
+		/* 用户消息背景色为绿色 */
 	}
 
 	.user-speak {
 		flex-direction: row-reverse;
 	}
 
-	.user-speak.message {
+	.user-speak .message {
 		background-color: #04BE02;
+		/* 用户消息背景色为绿色 */
 	}
 
 	.avatar {
@@ -631,24 +592,18 @@
 
 	.upload-button,
 	.submit-button {
+		margin: 10px;
 		font-size: 14px;
 		border-radius: 5px;
-		background-color: #ff5100;
 		width: 60px;
 		height: 40px;
-		border: none;
-		color: #ffffff;
-		display: flex;
-		/* 设置为flex布局，方便内部元素的对齐操作 */
-		justify-content: center;
-		/* 水平方向居中 */
-		align-items: center;
-		/* 垂直方向居中 */
 	}
 
 	.upload-button {
 		background-color: #ffffff;
+		/* Default background color for upload button */
 		border: 1px solid #ccc;
+		/* Default border for upload button */
 	}
 
 	.upload-icon {
@@ -656,105 +611,59 @@
 		height: 30px;
 	}
 
+	.submit-button {
+		background-color: #ff5100;
+		/* Color for submit button */
+		border: none;
+		/* No border for submit button */
+		color: #ffffff;
+		/* Text color for submit button */
+	}
+
+	/* Radio and Checkbox checked styles */
+	.radio-checked,
+	.checkbox-checked {
+		color: #ff5100;
+		/* Color for checked state */
+	}
+
+	radio:checked,
+	checkbox:checked {
+		background-color: #ff5100;
+		border-color: #ff5100;
+	}
+
 	.message {
 		max-width: 70%;
 		background-color: #ffffff;
+		/* 默认消息背景色为白色 */
 		padding: 5px;
 		border-radius: 5px;
 		word-wrap: break-word;
 		align-self: flex-start;
 	}
 
-	.radio-group,
-	.checkbox-group {
-		display: flex;
-		flex-wrap: wrap;
-	}
-
-	.radio-label,
-	.checkbox-label {
-		display: flex;
-		align-items: center;
-		margin: 5px;
-	}
-
-	.radio-input,
-	.checkbox-input {
-		margin-right: 5px;
-	}
-
-	.radio-text,
-	.checkbox-text {
-		margin-left: 5px;
-	}
-
-	.radio-group {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		/* 让选项左对齐，更符合常规布局习惯 */
-	}
-
-	.radio-label {
-		display: flex;
-		align-items: center;
-		/* 让单选按钮和文字垂直居中对齐 */
-		margin-bottom: 10px;
-		/* 每个选项之间添加一定间距，增强可读性 */
-	}
-
-	/* 手机端model-popup样式 */
 	.model-popup {
 		position: fixed;
 		top: 0;
 		left: 0;
 		width: 100%;
 		height: 100%;
-		display: flex;
-		justify-content: center;
-		align-items: center;
 		background-color: rgba(0, 0, 0, 0.5);
 		z-index: 999;
-	}
-	.popup-content {
-		background-color: white;
-		padding: 20px;
-		border-radius: 10px;
-		width: 80%;
-		flex-direction: column;
-		/* 让内容区域占弹窗宽度的一定比例，更美观 */
-	}
-
-	/* PC端model-popup样式，通过条件编译适配 */
-	/* #ifdef H5 */
-	.model-popup {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 400px;
-		/* 可以根据PC端实际情况调整合适的宽度 */
-		height: 300px;
-		/* 可以根据PC端实际情况调整合适的高度 */
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		z-index: 999;
-		box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-		/* 添加阴影效果，增强弹窗立体感 */
 	}
 
 	.popup-content {
 		background-color: white;
 		padding: 20px;
 		border-radius: 10px;
-		width: 80%;
+		max-width: 300px;
+		display: flex;
 		flex-direction: column;
-		/* 让内容区域占弹窗宽度的一定比例，更美观 */
+		justify-content: center;
+		/* 使内部内容垂直居中 */
 	}
 
-	/* #endif */
 	.option-item {
 		display: flex;
 		align-items: center;
@@ -780,11 +689,10 @@
 	.textarea-box {
 		padding: 8px 10px;
 		background-color: #f9f9f9;
-		border: 1px solid #ff5100;
 		border-radius: 5px;
 	}
 
-	.textarea-box.textarea {
+	.textarea-box .textarea {
 		max-height: 120px;
 		font-size: 14px;
 		/* #ifndef APP-NVUE */
@@ -796,7 +704,7 @@
 
 	/* #ifdef H5 */
 	/*隐藏滚动条*/
-	.textarea-box.textarea::-webkit-scrollbar {
+	.textarea-box .textarea::-webkit-scrollbar {
 		width: 0;
 	}
 
@@ -809,7 +717,6 @@
 
 	.trash,
 	.send {
-		color: #ff5100;
 		width: 50px;
 		height: 30px;
 		justify-content: center;
@@ -852,9 +759,10 @@
 
 
 	.msg-list {
-		height: 0;
+		height: 0; //不可省略，先设置为0 再由flex: 1;撑开才是一个滚动容器
 		flex: 1;
 		width: 750rpx;
+		// border: 1px solid red;
 	}
 
 	.noData {
@@ -908,7 +816,7 @@
 			background-color: #efefef;
 		}
 
-		.container.header {
+		.container .header {
 			height: 44px;
 			line-height: 44px;
 			border-bottom: 1px solid #F0F0F0;
@@ -923,10 +831,23 @@
 			max-width: 90%;
 		}
 
+		// .copy {
+		// 	color: #888888;
+		// 	position: absolute;
+		// 	right: 8px;
+		// 	top: 8px;
+		// 	font-size: 12px;
+		// 	cursor:pointer;
+		// }
+		// .copy :hover{
+		// 	color: #4b9e5f;
+		// }
+
 		.foot-box,
 		.foot-box-content,
 		.msg-list,
 		.msg-item,
+		// .create_time,
 		.noData,
 		.textarea-box,
 		.textarea,
@@ -977,9 +898,11 @@
 
 
 		.textarea-box,
-		.textarea-box * {}
+		.textarea-box * {
+			// border: 1px solid #000;
+		}
 
-		.send-btn-box.send-btn-tip {
+		.send-btn-box .send-btn-tip {
 			color: #919396;
 			margin-right: 8px;
 			font-size: 12px;

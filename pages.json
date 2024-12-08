@@ -3,7 +3,11 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "uni-app"
+				"navigationBarTitleText": "中医机器人",
+				"enablePullDownRefresh": false
+				// #ifdef H5
+				,"navigationStyle": "custom"
+				//#endif
 			}
 		},
 		{

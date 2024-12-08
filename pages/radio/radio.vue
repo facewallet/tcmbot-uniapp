@@ -132,6 +132,7 @@ export default {
 .checkbox-label {
   display: flex;
   align-items: center;
+  margin-top: 10px;
   margin-right: 20px;
   margin-bottom: 10px;
 }
