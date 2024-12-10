@@ -4,6 +4,8 @@ const common_assets = require("../../common/assets.js");
 const _sfc_main = {
   data() {
     return {
+      uuid: "",
+      trace_id: "",
       dialogueList: [],
       inputMessage: "",
       websocket: null,
@@ -91,21 +93,14 @@ const _sfc_main = {
     }
   },
   // 监听msgList变化，将其存储到本地缓存中
-  watch: {
-    llmModel(llmModel) {
-      common_vendor.index.setStorage({
-        key: "uni-ai-chat-llmModel",
-        data: llmModel
-      });
-    }
-  },
+  watch: {},
   beforeMount() {
   },
   async mounted() {
     this.fetchWelcome();
     this.fetchChannel();
     this.connectWebSocket();
-    this.llmModel = common_vendor.index.getStorageSync("uni-ai-chat-llmModel");
+    this.uuid = this.generateUUID();
     this.$nextTick(() => {
       this.showLastMsg();
     });
@@ -130,6 +125,9 @@ const _sfc_main = {
         this.websocketConnected = true;
       });
       this.websocket.onMessage((message) => {
+        if (this.trace_id === "") {
+          common_vendor.index.hideLoading();
+        }
         const res2 = JSON.parse(message.data);
         console.log("收到的消息：");
         console.log(res2);
@@ -140,11 +138,23 @@ const _sfc_main = {
         if (meta.code === 0) {
           const data2 = res2.data;
           if (data2.dialogue) {
+            console.log("data.dialogue");
+            console.log(data2.dialogue);
             this.dialogueList.push(data2.dialogue);
+            if (data2.dialogue.trace_id === this.trace_id) {
+              common_vendor.index.hideLoading();
+            }
           }
           if (data2.dialogueList) {
-            this.dialogueList.push(...data2.dialogueList);
+            for (let i = 0; i < data2.dialogueList.length; i++) {
+              const dialogue = data2.dialogueList[i];
+              this.dialogueList.push(dialogue);
+              if (dialogue.trace_id === this.trace_id) {
+                common_vendor.index.hideLoading();
+              }
+            }
           }
+          this.showLastMsg();
         }
       });
       this.websocket.onError((error) => {
@@ -176,12 +186,18 @@ const _sfc_main = {
     sendSocketMessage() {
       if (this.inputMessage.trim() === "")
         return;
+      this.trace_id = this.generateUUID();
       const message = {
         speaker: "user",
         type: "text",
         content: this.inputMessage,
-        user_intent: "user_ask"
+        user_intent: "user_ask",
+        uuid: this.uuid,
+        trace_id: this.trace_id,
+        channel_name: this.llmModel
+        // timestamp: new Date().getTime()
       };
+      console.log(message);
       this.dialogueList.push(message);
       this.inputMessage = "";
       if (this.websocketConnected) {
@@ -209,6 +225,10 @@ const _sfc_main = {
         });
       }
       this.inputMessage = "";
+      common_vendor.index.showLoading({ title: "思考中" });
+      setTimeout(function() {
+        common_vendor.index.hideLoading();
+      }, 1e4);
     },
     fetchWelcome() {
       common_vendor.index.request({
@@ -223,6 +243,7 @@ const _sfc_main = {
             if (data.dialogue) {
               this.dialogueList.push(data.dialogue);
             }
+            this.showLastMsg();
           }
         },
         fail: (err) => {
@@ -270,12 +291,15 @@ const _sfc_main = {
     submitSocketForm(dialogue) {
       let cloneDialogue = JSON.parse(JSON.stringify(dialogue));
       cloneDialogue.speaker = "user";
+      this.trace_id = this.generateUUID();
+      cloneDialogue.trace_id = this.trace_id;
       this.dialogueList.push(cloneDialogue);
       if (this.websocketConnected) {
         this.websocket.send({
           data: JSON.stringify(cloneDialogue),
           success: () => {
             console.log("Form sent successfully");
+            this.showLastMsg();
           },
           fail: (err) => {
             console.error("Failed to send form:", err);
@@ -288,6 +312,7 @@ const _sfc_main = {
             data: JSON.stringify(cloneDialogue),
             success: () => {
               console.log("Form sent successfully after connection");
+              this.showLastMsg();
             },
             fail: (err) => {
               console.error("Failed to send form after connection:", err);
@@ -295,31 +320,23 @@ const _sfc_main = {
           });
         });
       }
+      common_vendor.index.showLoading({ title: "思考中" });
     },
     setLLMmodel() {
       this.showModelPopup = true;
     },
     confirmModel() {
       console.log("Selected llmModel:", this.llmModel);
-      console.log("Selected selectedModel:", this.selectedModel);
       this.showModelPopup = false;
     },
-    // setLLMmodel() {
-    // 	this.showLlmConfig = true; // 点击设置按钮时，显示llm-config组件
-    // },
+    generateUUID() {
+      const timestamp = Date.now().toString(16);
+      const randomPart = Math.floor(Math.random() * 4294967296).toString(16).padStart(8, "0");
+      return `${timestamp}-${randomPart}`;
+    },
     radioChange(e) {
       this.llmModel = e.detail.value;
     },
-    handleConfirm(modelValue) {
-      this.llmModel = modelValue;
-      this.showLlmConfig = false;
-    },
-    // setLLMmodel() {
-    // 	this.$refs['llm-config'].open(model => {
-    // 		console.log('model', model);
-    // 		this.llmModel = model
-    // 	})
-    // },
     // 更新最后一条消息
     updateLastMsg(param) {
       let length = this.msgList.length;
@@ -348,6 +365,10 @@ const _sfc_main = {
           this.scrollIntoView = "";
         });
       });
+    },
+    isLastBotForm(dialogue) {
+      const lastDialogue = this.dialogueList[this.dialogueList.length - 1];
+      return dialogue === lastDialogue && lastDialogue.speaker === "bot";
     }
   }
 };
@@ -379,13 +400,17 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
           size: "30"
         })
       }, {
-        f: dialogue.type === "text"
-      }, dialogue.type === "text" ? {
-        g: common_vendor.t(dialogue.content)
+        f: dialogue.channel_label
+      }, dialogue.channel_label ? {
+        g: common_vendor.t(dialogue.channel_label)
       } : {}, {
-        h: dialogue.type === "form"
+        h: dialogue.type === "text"
+      }, dialogue.type === "text" ? {
+        i: dialogue.content
+      } : {}, {
+        j: dialogue.type === "form"
       }, dialogue.type === "form" ? {
-        i: common_vendor.f(dialogue.forms, (formItem, k1, i1) => {
+        k: common_vendor.f(dialogue.forms, (formItem, k1, i1) => {
           return common_vendor.e({
             a: common_vendor.t(formItem.label),
             b: formItem.type === "text" || formItem.type === "password"
@@ -428,12 +453,13 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
             p: formItem.id
           });
         }),
-        j: common_vendor.o(($event) => $options.submitSocketForm(dialogue), index)
+        l: !$options.isLastBotForm(dialogue),
+        m: common_vendor.o(($event) => $options.submitSocketForm(dialogue), index)
       } : {}, {
-        k: dialogue.speaker === "user" ? "#ffffff" : "#f8f8f8",
-        l: index,
-        m: dialogue.speaker === "bot" ? 1 : "",
-        n: dialogue.speaker === "user" ? 1 : ""
+        n: dialogue.speaker === "user" ? "#ffffff" : "#f8f8f8",
+        o: index,
+        p: dialogue.speaker === "bot" ? 1 : "",
+        q: dialogue.speaker === "user" ? 1 : ""
       });
     }),
     b: $data.scrollIntoView,
@@ -471,7 +497,9 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
     }),
     p: common_vendor.o((...args) => $options.radioChange && $options.radioChange(...args)),
     q: common_vendor.o((...args) => $options.confirmModel && $options.confirmModel(...args))
-  } : {});
+  } : {}, {
+    r: $data.isWidescreen
+  }, $data.isWidescreen ? {} : {});
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render]]);
 wx.createPage(MiniProgramPage);

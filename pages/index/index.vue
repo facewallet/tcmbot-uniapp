@@ -11,7 +11,8 @@
 				<uni-icons v-if="dialogue.speaker === 'bot'" color="#ff5100" type="headphones" size="30"></uni-icons>
 				<uni-icons v-else color="#ff5100" type="contact" size="30"></uni-icons>
 				<view class="message" :style="{ backgroundColor: dialogue.speaker === 'user'? '#ffffff' : '#f8f8f8' }">
-					<text v-if="dialogue.type === 'text'">{{ dialogue.content }}</text>
+					<view v-if="dialogue.channel_label" style="white-space: pre-line;">来自：{{ dialogue.channel_label }}</view>
+					<view v-if="dialogue.type === 'text'" style="white-space: pre-line;" v-html="dialogue.content"></view>
 					<form v-if="dialogue.type === 'form'" @submit="submitSocketForm(dialogue)">
 						<view v-for="formItem in dialogue.forms" :key="formItem.id" style="flex-direction: column;">
 							<label>{{formItem.label}}</label>
@@ -37,7 +38,7 @@
 								<image src="/static/upload.png" class="upload-icon" />
 							</button>
 						</view>
-						<button form-type="submit" class="submit-button">提交</button>
+						<button form-type="submit" :disabled="!isLastBotForm(dialogue)" class="submit-button">提交</button>
 					</form>
 				</view>
 			</view>
@@ -85,6 +86,10 @@
 				<button @click="confirmModel" class="submit-button">确定</button>
 			</view>
 		</view>
+		<view v-if="isWidescreen">
+		  <a href="https://beian.miit.gov.cn/" style="font-size: 12px; text-decoration: none;">备案号：京ICP备20000763号</a>
+		</view>
+
 	</view>
 </template>
 
@@ -96,6 +101,8 @@
 	export default {
 		data() {
 			return {
+				uuid:'',
+				trace_id:'',
 				dialogueList: [],
 				inputMessage: '',
 				websocket: null,
@@ -168,22 +175,7 @@
 		},
 		// 监听msgList变化，将其存储到本地缓存中
 		watch: {
-			llmModel(llmModel) {
-				let title = 'tcmbot'
-				if (llmModel) {
-					title += ` (${llmModel})`
-				}
-				// uni.setNavigationBarTitle({title})
-				// #ifdef H5
-				if (this.isWidescreen) {
-					document.querySelector('.header').innerText = title
-				}
-				// #endif
-				uni.setStorage({
-					key: 'uni-ai-chat-llmModel',
-					data: llmModel
-				})
-			}
+
 		},
 		beforeMount() {
 			// #ifdef H5
@@ -199,13 +191,7 @@
 			this.fetchWelcome();
 			this.fetchChannel();
 			this.connectWebSocket();
-			// 获得之前设置的llmModel
-			this.llmModel = uni.getStorageSync('uni-ai-chat-llmModel')
-
-
-			// this.msgList.pop()
-			// console.log('this.msgList', this.msgList);
-
+			this.uuid = this.generateUUID();
 			// 在dom渲染完毕后 使聊天窗口滚动到最后一条消息
 			this.$nextTick(() => {
 				this.showLastMsg()
@@ -226,9 +212,9 @@
 					if (e.keyCode == 13 && !adjunctKeydown) {
 						e.preventDefault()
 						// 执行发送
-						setTimeout(() => {
-							this.beforeSend();
-						}, 300)
+						// setTimeout(() => {
+						// 	this.beforeSend();
+						// }, 300)
 					}
 				};
 				textareaDom.onkeyup = e => {
@@ -289,6 +275,9 @@
 				});
 
 				this.websocket.onMessage((message) => {
+					if(this.trace_id ===''){
+						uni.hideLoading();
+					}
 					const res = JSON.parse(message.data);
 					console.log("收到的消息：")
 					console.log(res)
@@ -299,11 +288,24 @@
 					if (meta.code === 0) {
 						const data = res.data;
 						if (data.dialogue) {
+							console.log("data.dialogue")
+							console.log(data.dialogue)
 							this.dialogueList.push(data.dialogue);
+							if(data.dialogue.trace_id === this.trace_id){
+								uni.hideLoading();
+							}
 						}
 						if (data.dialogueList) {
-							this.dialogueList.push(...data.dialogueList);
+							for (let i = 0; i < data.dialogueList.length; i++) {
+								const dialogue = data.dialogueList[i];
+								this.dialogueList.push(dialogue);
+								if(dialogue.trace_id === this.trace_id){
+									uni.hideLoading();
+								}
+							}
+							// this.dialogueList.push(...data.dialogueList);
 						}
+						this.showLastMsg()
 						// this.$nextTick(() => {
 						// 	this.scrollChatToBottom();
 						// });
@@ -341,12 +343,18 @@
 			},
 			sendSocketMessage() {
 				if (this.inputMessage.trim() === '') return;
+				this.trace_id = this.generateUUID();
 				const message = {
 					speaker: 'user',
 					type: 'text',
 					content: this.inputMessage,
-					user_intent: 'user_ask'
+					user_intent: 'user_ask',
+					uuid:this.uuid,
+					trace_id: this.trace_id,
+					channel_name: this.llmModel
+					// timestamp: new Date().getTime()
 				};
+				console.log(message)
 				this.dialogueList.push(message);
 				this.inputMessage = '';
 				if (this.websocketConnected) {
@@ -377,6 +385,10 @@
 					});
 				}
 				this.inputMessage = '';
+				uni.showLoading({title:'思考中'})
+				setTimeout(function(){
+					uni.hideLoading();
+				},10000);
 			},
 
 			fetchWelcome() {
@@ -393,6 +405,7 @@
 							if (data.dialogue) {
 								this.dialogueList.push(data.dialogue);
 							}
+							this.showLastMsg();
 						}
 					},
 					fail: (err) => {
@@ -450,12 +463,15 @@
 				// } else if (cloneDialogue.bot_intent === 'do_slot_fill') {
 				// 	cloneDialogue.user_intent = 'finish_slot_fill'
 				// }
+				this.trace_id = this.generateUUID();
+				cloneDialogue.trace_id = this.trace_id;
 				this.dialogueList.push(cloneDialogue);
 				if (this.websocketConnected) {
 					this.websocket.send({
 						data: JSON.stringify(cloneDialogue),
 						success: () => {
 							console.log('Form sent successfully');
+							this.showLastMsg();
 							// this.$nextTick(() => {
 							// 	this.scrollChatToBottom();
 							// });
@@ -471,6 +487,7 @@
 							data: JSON.stringify(cloneDialogue),
 							success: () => {
 								console.log('Form sent successfully after connection');
+								this.showLastMsg();
 								// this.$nextTick(() => {
 								// 	this.scrollChatToBottom();
 								// });
@@ -481,6 +498,7 @@
 						});
 					});
 				}
+				uni.showLoading({title:'思考中'})
 			},
 
 			setLLMmodel() {
@@ -488,30 +506,19 @@
 				
 			},
 			confirmModel() {
-				// this.llmModel = this.selectedModel; // 将选中的模型值赋给llmModel
 				console.log('Selected llmModel:', this.llmModel);
-				console.log('Selected selectedModel:', this.selectedModel);
 				this.showModelPopup = false; // 隐藏单选组件弹窗
 			},
-			// setLLMmodel() {
-			// 	this.showLlmConfig = true; // 点击设置按钮时，显示llm-config组件
-			// },
+			generateUUID() {
+			          const timestamp = Date.now().toString(16); // 获取当前时间戳并转换为十六进制
+			          const randomPart = Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0'); // 生成随机数并转换为十六进制，不足8位补0
+			          return `${timestamp}-${randomPart}`;
+			      },
 			radioChange(e) {
 				// 当radio选项变化时，更新selectedModel的值
 				// this.selectedModel = e.detail.value;
 				this.llmModel = e.detail.value;
 			},
-			handleConfirm(modelValue) {
-				this.llmModel = modelValue; // 获取llm-config组件传递过来的值，并赋值给当前页面的llmModel
-				this.showLlmConfig = false; // 隐藏llm-config组件
-			},
-			// setLLMmodel() {
-			// 	this.$refs['llm-config'].open(model => {
-			// 		console.log('model', model);
-			// 		this.llmModel = model
-			// 	})
-			// },
-
 			// 更新最后一条消息
 			updateLastMsg(param) {
 				let length = this.msgList.length
@@ -548,6 +555,11 @@
 					})
 				})
 			},
+			isLastBotForm(dialogue){
+				const lastDialogue = this.dialogueList[this.dialogueList.length - 1];
+				return dialogue === lastDialogue && lastDialogue.speaker === 'bot';
+			},
+			
 		}
 	}
 </script>
@@ -602,6 +614,9 @@
 		display: flex;
 		align-items: center;
 		margin-bottom: 10px;
+		margin-left: 10px;
+		margin-right:10px;
+		/* margin-top:10px; */
 	}
 
 	.bot-speak {
@@ -611,6 +626,7 @@
 
 	.bot-speak.message {
 		background-color: #f8f8f8;
+		flex-direction: column;
 	}
 
 	.user-speak {

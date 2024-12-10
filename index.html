@@ -1,20 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <script>
-      var coverSupport = 'CSS' in window && typeof CSS.supports === 'function' && (CSS.supports('top: env(a)') ||
-        CSS.supports('top: constant(a)'))
-      document.write(
-        '<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0' +
-        (coverSupport ? ', viewport-fit=cover' : '') + '" />')
-    </script>
-    <title></title>
-    <!--preload-links-->
-    <!--app-context-->
-  </head>
-  <body>
-    <div id="app"><!--app-html--></div>
-    <script type="module" src="/main.js"></script>
-  </body>
+	<head>
+		<meta charset="UTF-8" />
+		<!-- 页面关键词 keywords -->
+		<meta name="keywords" content="中医机器人 中医大模型 中医智能体 tcmgpt tcmbot">
+		<!-- 页面描述内容 description -->
+		<meta name="description" content="中医机器人 中医大模型 中医智能体 tcmgpt tcmbot">
+		<!-- 定义网页作者 author -->
+		<meta name="author" content="中医机器人">
+		<!-- 定义网页搜索引擎索引方式，robotterms 是一组使用英文逗号「,」分割的值，通常有如下几种取值：none，noindex，nofollow，all，index和follow。 -->
+		<meta name="robots" content="index,follow">
+
+		<!-- <meta http-equiv="refresh" content="0;url=https://www.tcmbot.com/"/> -->
+		<link rel="icon" href="/static/logo.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>虎符在线-中医机器人-tcmbot</title>
+		<script>
+			var coverSupport = 'CSS' in window && typeof CSS.supports === 'function' && (CSS.supports('top: env(a)') ||
+				CSS.supports('top: constant(a)'))
+			document.write(
+				'<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0' +
+				(coverSupport ? ', viewport-fit=cover' : '') + '" />')
+		</script>
+		<title></title>
+		<!--preload-links-->
+		<!--app-context-->
+	</head>
+	<body>
+		<div id="app"><!--app-html--></div>
+		<script type="module" src="/main.js"></script>
+	</body>
 </html>
