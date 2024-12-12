@@ -1,12 +1,15 @@
 "use strict";
 const common_vendor = require("../../common/vendor.js");
-const common_assets = require("../../common/assets.js");
 const _sfc_main = {
   data() {
     return {
       uuid: "",
+      host: "localhost:8086",
+      apiBaseUrl: "https://m.tcmbot.com",
+      socketBaseUrl: "wss://m.tcmbot.com",
       trace_id: "",
       dialogueList: [],
+      agent_dialogueList: [],
       inputMessage: "",
       websocket: null,
       websocketConnected: false,
@@ -97,6 +100,16 @@ const _sfc_main = {
   beforeMount() {
   },
   async mounted() {
+    const systemInfo = common_vendor.index.getSystemInfoSync();
+    console.log("-----------------");
+    console.log(systemInfo);
+    if (systemInfo.platform === "web") {
+      this.apiBaseUrl = "https://www.tcmbot.com";
+      this.socketBaseUrl = "wss://www.tcmbot.com";
+    } else {
+      this.apiBaseUrl = "https://m.tcmbot.com";
+      this.socketBaseUrl = "wss://m.tcmbot.com";
+    }
     this.fetchWelcome();
     this.fetchChannel();
     this.connectWebSocket();
@@ -116,7 +129,8 @@ const _sfc_main = {
       if (this.websocketConnected)
         return;
       this.websocket = common_vendor.index.connectSocket({
-        url: "ws://localhost:8086/api/socket/dialogue",
+        url: this.socketBaseUrl + "/api/socket/dialogue",
+        // url: 'ws://localhost:8086/api/socket/dialogue',
         success: () => {
           console.log("WebSocket connected");
         }
@@ -144,6 +158,9 @@ const _sfc_main = {
             if (data2.dialogue.trace_id === this.trace_id) {
               common_vendor.index.hideLoading();
             }
+            if (data2.dialogue.channel_name === "tcm-agent") {
+              this.agent_dialogueList.push(data2.dialogue);
+            }
           }
           if (data2.dialogueList) {
             for (let i = 0; i < data2.dialogueList.length; i++) {
@@ -151,6 +168,9 @@ const _sfc_main = {
               this.dialogueList.push(dialogue);
               if (dialogue.trace_id === this.trace_id) {
                 common_vendor.index.hideLoading();
+              }
+              if (dialogue.channel_name === "tcm-agent") {
+                this.agent_dialogueList.push(dialogue);
               }
             }
           }
@@ -232,7 +252,8 @@ const _sfc_main = {
     },
     fetchWelcome() {
       common_vendor.index.request({
-        url: "http://localhost:8086/api/pub/dialogue/welcome",
+        url: this.apiBaseUrl + "/api/pub/dialogue/welcome",
+        // url: 'http://localhost:8086/api/pub/dialogue/welcome',
         success: (res2) => {
           console.log(res2);
           if (res2.data.meta.code === 0) {
@@ -243,7 +264,6 @@ const _sfc_main = {
             if (data.dialogue) {
               this.dialogueList.push(data.dialogue);
             }
-            this.showLastMsg();
           }
         },
         fail: (err) => {
@@ -253,7 +273,8 @@ const _sfc_main = {
     },
     fetchChannel() {
       common_vendor.index.request({
-        url: "http://localhost:8086/api/pub/dialogue/channel",
+        url: this.apiBaseUrl + "/api/pub/dialogue/channel",
+        // url: 'http://localhost:8086/api/pub/dialogue/channel',
         success: (res2) => {
           console.log(res2);
           if (res2.data.meta.code === 0) {
@@ -367,8 +388,8 @@ const _sfc_main = {
       });
     },
     isLastBotForm(dialogue) {
-      const lastDialogue = this.dialogueList[this.dialogueList.length - 1];
-      return dialogue === lastDialogue && lastDialogue.speaker === "bot";
+      const lastDialogue = this.agent_dialogueList[this.agent_dialogueList.length - 1];
+      return dialogue === lastDialogue && lastDialogue.type === "form";
     }
   }
 };
@@ -400,17 +421,21 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
           size: "30"
         })
       }, {
-        f: dialogue.channel_label
-      }, dialogue.channel_label ? {
+        f: dialogue.channel_label && dialogue.speaker === "bot"
+      }, dialogue.channel_label && dialogue.speaker === "bot" ? {
         g: common_vendor.t(dialogue.channel_label)
       } : {}, {
-        h: dialogue.type === "text"
-      }, dialogue.type === "text" ? {
-        i: dialogue.content
+        h: dialogue.channel_label && dialogue.speaker === "user"
+      }, dialogue.channel_label && dialogue.speaker === "user" ? {
+        i: common_vendor.t(dialogue.channel_label)
       } : {}, {
-        j: dialogue.type === "form"
+        j: dialogue.type === "text"
+      }, dialogue.type === "text" ? {
+        k: dialogue.content
+      } : {}, {
+        l: dialogue.type === "form"
       }, dialogue.type === "form" ? {
-        k: common_vendor.f(dialogue.forms, (formItem, k1, i1) => {
+        m: common_vendor.f(dialogue.forms, (formItem, k1, i1) => {
           return common_vendor.e({
             a: common_vendor.t(formItem.label),
             b: formItem.type === "text" || formItem.type === "password"
@@ -447,19 +472,18 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
           } : {}, {
             m: formItem.type === "file"
           }, formItem.type === "file" ? {
-            n: common_assets._imports_1,
-            o: common_vendor.o((...args) => $options.uploadFile && $options.uploadFile(...args), formItem.id)
+            n: common_vendor.o((...args) => $options.uploadFile && $options.uploadFile(...args), formItem.id)
           } : {}, {
-            p: formItem.id
+            o: formItem.id
           });
         }),
-        l: !$options.isLastBotForm(dialogue),
-        m: common_vendor.o(($event) => $options.submitSocketForm(dialogue), index)
+        n: !$options.isLastBotForm(dialogue),
+        o: common_vendor.o(($event) => $options.submitSocketForm(dialogue), index)
       } : {}, {
-        n: dialogue.speaker === "user" ? "#ffffff" : "#f8f8f8",
-        o: index,
-        p: dialogue.speaker === "bot" ? 1 : "",
-        q: dialogue.speaker === "user" ? 1 : ""
+        p: dialogue.speaker === "user" ? "#ffffff" : "#f8f8f8",
+        q: index,
+        r: dialogue.speaker === "bot" ? 1 : "",
+        s: dialogue.speaker === "user" ? 1 : ""
       });
     }),
     b: $data.scrollIntoView,

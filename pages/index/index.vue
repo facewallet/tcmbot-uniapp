@@ -1,19 +1,19 @@
 <template>
 	<view class="container">
 		<!-- #ifdef H5 -->
-		<view v-if="isWidescreen" class="header">中医机器人Web版</view>
+		<view v-if="isWidescreen" class="header">中医机器人Web版中医机器人Web版中医机器人Web版中医机器人Web版</view>
 		<!-- #endif -->
 		<scroll-view :scroll-into-view="scrollIntoView" scroll-y="true" class="msg-list" :enable-flex="true">
 			<view v-for="(dialogue, index) in dialogueList" :key="index" class="dialogue"
 				:class="{ 'bot-speak': dialogue.speaker === 'bot', 'user-speak': dialogue.speaker === 'user' }">
 				
-				<!-- <image :src="dialogue.speaker === 'bot'? '/static/bot.png' : '/static/user.png'" class="avatar" /> -->
 				<uni-icons v-if="dialogue.speaker === 'bot'" color="#ff5100" type="headphones" size="30"></uni-icons>
 				<uni-icons v-else color="#ff5100" type="contact" size="30"></uni-icons>
 				<view class="message" :style="{ backgroundColor: dialogue.speaker === 'user'? '#ffffff' : '#f8f8f8' }">
-					<view v-if="dialogue.channel_label" style="white-space: pre-line;">来自：{{ dialogue.channel_label }}</view>
-					<view v-if="dialogue.type === 'text'" style="white-space: pre-line;" v-html="dialogue.content"></view>
-					<form v-if="dialogue.type === 'form'" @submit="submitSocketForm(dialogue)">
+					<view v-if="dialogue.channel_label && dialogue.speaker ==='bot'" style="margin-top: 5px;">来自：{{ dialogue.channel_label }}</view>
+					<view v-if="dialogue.channel_label && dialogue.speaker ==='user'" style="margin-top: 5px;">发往：{{ dialogue.channel_label }}</view>
+					<view v-if="dialogue.type === 'text'" style="margin-top: 5px;" v-html="dialogue.content"></view>
+					<form style="margin-top: 5px;" v-if="dialogue.type === 'form'" @submit="submitSocketForm(dialogue)">
 						<view v-for="formItem in dialogue.forms" :key="formItem.id" style="flex-direction: column;">
 							<label>{{formItem.label}}</label>
 							<input v-if="formItem.type === 'text' || formItem.type === 'password'" :type="formItem.type"
@@ -35,7 +35,7 @@
 								</label>
 							</checkbox-group>
 							<button v-if="formItem.type === 'file'" @click="uploadFile" class="upload-button">
-								<image src="/static/upload.png" class="upload-icon" />
+								<!-- <image src="/static/upload.png" class="upload-icon" /> -->
 							</button>
 						</view>
 						<button form-type="submit" :disabled="!isLastBotForm(dialogue)" class="submit-button">提交</button>
@@ -102,8 +102,12 @@
 		data() {
 			return {
 				uuid:'',
+				host:'localhost:8086',
+				apiBaseUrl : 'https://m.tcmbot.com',
+				socketBaseUrl : 'wss://m.tcmbot.com',
 				trace_id:'',
 				dialogueList: [],
+				agent_dialogueList: [],
 				inputMessage: '',
 				websocket: null,
 				websocketConnected: false,
@@ -186,8 +190,19 @@
 				this.isWidescreen = matches;
 			})
 			// #endif
+
 		},
 		async mounted() {
+			const systemInfo = uni.getSystemInfoSync();
+			console.log('-----------------');
+			console.log(systemInfo);
+			if (systemInfo.platform === 'web') {
+			  this.apiBaseUrl = 'https://www.tcmbot.com';
+			  this.socketBaseUrl = 'wss://www.tcmbot.com';
+			} else {
+			  this.apiBaseUrl = 'https://m.tcmbot.com';
+			  this.socketBaseUrl = 'wss://m.tcmbot.com';
+			}
 			this.fetchWelcome();
 			this.fetchChannel();
 			this.connectWebSocket();
@@ -264,7 +279,8 @@
 			connectWebSocket() {
 				if (this.websocketConnected) return;
 				this.websocket = uni.connectSocket({
-					url: 'ws://localhost:8086/api/socket/dialogue',
+					url: this.socketBaseUrl+'/api/socket/dialogue',
+					// url: 'ws://localhost:8086/api/socket/dialogue',
 					success: () => {
 						console.log('WebSocket connected');
 					}
@@ -294,6 +310,9 @@
 							if(data.dialogue.trace_id === this.trace_id){
 								uni.hideLoading();
 							}
+							if(data.dialogue.channel_name ==='tcm-agent'){
+								this.agent_dialogueList.push(data.dialogue);
+							}
 						}
 						if (data.dialogueList) {
 							for (let i = 0; i < data.dialogueList.length; i++) {
@@ -301,6 +320,9 @@
 								this.dialogueList.push(dialogue);
 								if(dialogue.trace_id === this.trace_id){
 									uni.hideLoading();
+								}
+								if(dialogue.channel_name ==='tcm-agent'){
+									this.agent_dialogueList.push(dialogue);
 								}
 							}
 							// this.dialogueList.push(...data.dialogueList);
@@ -393,7 +415,8 @@
 
 			fetchWelcome() {
 				uni.request({
-					url: 'http://localhost:8086/api/pub/dialogue/welcome',
+					url: this.apiBaseUrl+'/api/pub/dialogue/welcome',
+					// url: 'http://localhost:8086/api/pub/dialogue/welcome',
 					success: (res) => {
 						console.log(res)
 						if (res.data.meta.code === 0) {
@@ -405,7 +428,7 @@
 							if (data.dialogue) {
 								this.dialogueList.push(data.dialogue);
 							}
-							this.showLastMsg();
+							// this.showLastMsg();
 						}
 					},
 					fail: (err) => {
@@ -415,7 +438,8 @@
 			},
 			fetchChannel() {
 				uni.request({
-					url: 'http://localhost:8086/api/pub/dialogue/channel',
+					url: this.apiBaseUrl+'/api/pub/dialogue/channel',
+					// url: 'http://localhost:8086/api/pub/dialogue/channel',
 					success: (res) => {
 						console.log(res)
 						if (res.data.meta.code === 0) {
@@ -556,8 +580,9 @@
 				})
 			},
 			isLastBotForm(dialogue){
-				const lastDialogue = this.dialogueList[this.dialogueList.length - 1];
-				return dialogue === lastDialogue && lastDialogue.speaker === 'bot';
+				const lastDialogue = this.agent_dialogueList[this.agent_dialogueList.length - 1];
+				return dialogue === lastDialogue && lastDialogue.type === 'form';
+				// return lastDialogue.type === 'form';
 			},
 			
 		}
@@ -613,7 +638,7 @@
 	.dialogue {
 		display: flex;
 		align-items: center;
-		margin-bottom: 10px;
+		margin-bottom: 5px;
 		margin-left: 10px;
 		margin-right:10px;
 		/* margin-top:10px; */
@@ -679,6 +704,7 @@
 		border-radius: 5px;
 		word-wrap: break-word;
 		align-self: flex-start;
+		flex-direction: column;
 	}
 
 	.radio-group,
