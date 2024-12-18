@@ -1,17 +1,21 @@
 <template>
 	<view class="container">
 		<!-- #ifdef H5 -->
-		<view v-if="isWidescreen" class="header">中医机器人Web版中医机器人Web版中医机器人Web版中医机器人Web版</view>
+		<view v-if="isWidescreen" class="header">中医机器人Web版
+			<!-- <image src="/static/miniapp.jpg" mode="aspectFit" class="header-img"></image> -->
+		</view>
 		<!-- #endif -->
 		<scroll-view :scroll-into-view="scrollIntoView" scroll-y="true" class="msg-list" :enable-flex="true">
 			<view v-for="(dialogue, index) in dialogueList" :key="index" class="dialogue"
 				:class="{ 'bot-speak': dialogue.speaker === 'bot', 'user-speak': dialogue.speaker === 'user' }">
-				
+
 				<uni-icons v-if="dialogue.speaker === 'bot'" color="#ff5100" type="headphones" size="30"></uni-icons>
 				<uni-icons v-else color="#ff5100" type="contact" size="30"></uni-icons>
 				<view class="message" :style="{ backgroundColor: dialogue.speaker === 'user'? '#ffffff' : '#f8f8f8' }">
-					<view v-if="dialogue.channel_label && dialogue.speaker ==='bot'" style="margin-top: 5px;">来自：{{ dialogue.channel_label }}</view>
-					<view v-if="dialogue.channel_label && dialogue.speaker ==='user'" style="margin-top: 5px;">发往：{{ dialogue.channel_label }}</view>
+					<view v-if="dialogue.channel_label && dialogue.speaker ==='bot'" style="margin-top: 5px;">
+						来自：{{ dialogue.channel_label }}</view>
+					<view v-if="dialogue.channel_label && dialogue.speaker ==='user'" style="margin-top: 5px;">
+						发往：{{ dialogue.channel_label }}</view>
 					<view v-if="dialogue.type === 'text'" style="margin-top: 5px;" v-html="dialogue.content"></view>
 					<form style="margin-top: 5px;" v-if="dialogue.type === 'form'" @submit="submitSocketForm(dialogue)">
 						<view v-for="formItem in dialogue.forms" :key="formItem.id" style="flex-direction: column;">
@@ -38,7 +42,8 @@
 								<!-- <image src="/static/upload.png" class="upload-icon" /> -->
 							</button>
 						</view>
-						<button form-type="submit" :disabled="!isLastBotForm(dialogue)" class="submit-button">提交</button>
+						<button form-type="submit" :disabled="!isLastBotForm(dialogue)"
+							class="submit-button">提交</button>
 					</form>
 				</view>
 			</view>
@@ -50,13 +55,13 @@
 			<!-- #ifdef H5 -->
 			<view class="pc-menu" v-if="isWidescreen">
 				<view class="settings pc-menu-item" @click="setLLMmodel" title="设置">
-					<uni-icons color="#555" size="20px" type="settings"></uni-icons>
+					<uni-icons color="#ff5100" size="20px" type="bars"></uni-icons>
 				</view>
 			</view>
 			<!-- #endif -->
 			<view class="foot-box-content">
 				<view v-if="!isWidescreen" class="menu">
-					<uni-icons class="menu-item" @click="setLLMmodel" color="#ff5100" size="20px"
+					<uni-icons class="menu-item" @click="setLLMmodel" color="#ff5100" size="20"
 						type="bars"></uni-icons>
 				</view>
 				<view class="textarea-box">
@@ -64,22 +69,24 @@
 						placeholder="请输入要发给中医机器人的内容" :maxlength="-1" :adjust-position="false"
 						:disable-default-padding="false" placeholder-class="input-placeholder"></textarea>
 				</view>
-				<view class="send-btn-box" :title="(msgList.length && msgList.length%2!== 0)? 'ai正在回复中不能发送':''">
+				<view class="send-btn-box">
 					<!-- #ifdef H5 -->
 					<text v-if="isWidescreen" class="send-btn-tip">↵ 发送 / shift + ↵ 换行</text>
 					<!-- #endif -->
 					<!-- <button @click="sendSocketMessage" class="send" type="primary">发送</button> -->
-					<uni-icons @click="sendSocketMessage" class="send" color="#ff5100" type="paperplane-filled" size="30"></uni-icons>
+					<uni-icons @click="sendSocketMessage"  color="#ff5100" type="paperplane"
+						size="24"></uni-icons>
 
 				</view>
 			</view>
 		</view>
 		<view class="model-popup" v-if="showModelPopup">
 			<view class="popup-content">
-				<radio-group  class="radio-group" @change="radioChange">
+				<radio-group class="radio-group" @change="radioChange">
 					<view class="option-item" v-for="(option, index) in modelOptions" :key="index">
 						<!-- <radio :value="option.value" /> -->
-						<radio :value="option.value" :disabled="option.disabled === 'YES'" :checked="option.value === this.llmModel" />
+						<radio :value="option.value" :disabled="option.disabled === 'YES'"
+							:checked="option.value === this.llmModel" />
 						<text class="option-text">{{ option.name }}</text>
 					</view>
 				</radio-group>
@@ -87,7 +94,7 @@
 			</view>
 		</view>
 		<view v-if="isWidescreen">
-		  <a href="https://beian.miit.gov.cn/" style="font-size: 12px; text-decoration: none;">备案号：京ICP备20000763号</a>
+			<a href="https://beian.miit.gov.cn/" style="font-size: 12px; text-decoration: none;">备案号：京ICP备20000763号</a>
 		</view>
 
 	</view>
@@ -101,11 +108,8 @@
 	export default {
 		data() {
 			return {
-				uuid:'',
-				host:'localhost:8086',
-				apiBaseUrl : 'https://m.tcmbot.com',
-				socketBaseUrl : 'wss://m.tcmbot.com',
-				trace_id:'',
+				uuid: '',
+				trace_id: '',
 				dialogueList: [],
 				agent_dialogueList: [],
 				inputMessage: '',
@@ -133,28 +137,40 @@
 				llmModel: 'tcm-all',
 				showModelPopup: false, // 控制单选组件弹窗是否显示，初始为隐藏
 				modelOptions: [{
-					name: '全部模型',
-					value: 'tcm-all',checked: true,disabled: false
-				}, {
-					name: '中医大模型',
-					value: 'tcm-rag',checked: false,disabled: false
-				},
-				{
-					name: '中医小模型',
-					value: 'tcm-ner',checked: false,disabled: false
-				},
-				{
-					name: '中医知识图谱',
-					value: 'tcm-graphrag',checked: false,disabled: false
-				},
-				{
-					name: '中医智能体',
-					value: 'tcm-agent',checked: false,disabled: true
-				},{
-					name: '中医介子推',
-					value: 'tcm-jzt',checked: false,disabled: true
-				},
-				
+						name: '全部模型',
+						value: 'tcm-all',
+						checked: true,
+						disabled: false
+					}, {
+						name: '中医大模型',
+						value: 'tcm-rag',
+						checked: false,
+						disabled: false
+					},
+					{
+						name: '中医小模型',
+						value: 'tcm-ner',
+						checked: false,
+						disabled: false
+					},
+					{
+						name: '中医知识图谱',
+						value: 'tcm-graphrag',
+						checked: false,
+						disabled: false
+					},
+					{
+						name: '中医智能体',
+						value: 'tcm-agent',
+						checked: false,
+						disabled: true
+					}, {
+						name: '中医介子推',
+						value: 'tcm-jzt',
+						checked: false,
+						disabled: true
+					},
+
 				], // 存储从接口获取的单选选项数据，格式如 [{name: '选项1', value: 'option1'},...]
 				selectedModel: '' // 用于绑定单选按钮选中的值
 			}
@@ -193,16 +209,6 @@
 
 		},
 		async mounted() {
-			const systemInfo = uni.getSystemInfoSync();
-			console.log('-----------------');
-			console.log(systemInfo);
-			if (systemInfo.platform === 'web') {
-			  this.apiBaseUrl = 'https://www.tcmbot.com';
-			  this.socketBaseUrl = 'wss://www.tcmbot.com';
-			} else {
-			  this.apiBaseUrl = 'https://m.tcmbot.com';
-			  this.socketBaseUrl = 'wss://m.tcmbot.com';
-			}
 			this.fetchWelcome();
 			this.fetchChannel();
 			this.connectWebSocket();
@@ -276,11 +282,54 @@
 			// #endif
 		},
 		methods: {
+			getHttpHost() {
+				// 获取系统信息
+				const systemInfo = uni.getSystemInfoSync();
+				// 判断是否为PC浏览器且未模拟手机
+				const isPCBrowser = systemInfo.uniPlatform === 'web' && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
+					console.log('getHttpHost')
+					console.log(systemInfo.platform)
+					console.log(systemInfo.userAgent)
+				return isPCBrowser ? 'https://www.tcmbot.com' : 'https://m.tcmbot.com';
+				// return isPCBrowser ? 'https://tcmbot.com' : 'https://tcmbot.com';
+			},
+			getWebSocketHost() {
+				// 获取系统信息
+				const systemInfo = uni.getSystemInfoSync();
+				// 判断是否为PC浏览器且未模拟手机
+				const isPCBrowser = systemInfo.uniPlatform === 'web' && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
+
+					console.log('getWebSocketHost')
+					console.log(systemInfo.platform)
+					console.log(systemInfo.userAgent)
+				// return isPCBrowser ? 'wss://www.tcmbot.com' : 'wss://m.tcmbot.com';
+				return 'ws://localhost:8086';
+			},
+			// getHttpHost() {
+			// 	const systemInfo = uni.getSystemInfoSync();
+			// 	if (process.env.UNI_PLATFORM === 'h5' && systemInfo.devicePixelRatio === 1 && systemInfo.windowWidth >=
+			// 		1024 && !systemInfo.simulator) {
+			// 		return 'https://www.tcmbot.com';
+			// 	}
+			// 	return 'https://m.tcmbot.com';
+			// },
+			// getWebSocketHost() {
+			// 	const systemInfo = uni.getSystemInfoSync();
+			// 	if (process.env.UNI_PLATFORM === 'h5' && systemInfo.devicePixelRatio === 1 && systemInfo.windowWidth >=
+			// 		1024 && !systemInfo.simulator) {
+			// 		return 'wss://www.tcmbot.com';
+			// 	}
+			// 	return 'wss://m.tcmbot.com';
+			// },
 			connectWebSocket() {
 				if (this.websocketConnected) return;
 				this.websocket = uni.connectSocket({
-					url: this.socketBaseUrl+'/api/socket/dialogue',
+					url: this.getWebSocketHost() + '/api/socket/dialogue',
 					// url: 'ws://localhost:8086/api/socket/dialogue',
+					    header: {
+					        'Cache-Control': 'no-cache',
+					        'Pragma': 'no-cache'
+					    },
 					success: () => {
 						console.log('WebSocket connected');
 					}
@@ -291,7 +340,7 @@
 				});
 
 				this.websocket.onMessage((message) => {
-					if(this.trace_id ===''){
+					if (this.trace_id === '') {
 						uni.hideLoading();
 					}
 					const res = JSON.parse(message.data);
@@ -307,10 +356,10 @@
 							console.log("data.dialogue")
 							console.log(data.dialogue)
 							this.dialogueList.push(data.dialogue);
-							if(data.dialogue.trace_id === this.trace_id){
+							if (data.dialogue.trace_id === this.trace_id) {
 								uni.hideLoading();
 							}
-							if(data.dialogue.channel_name ==='tcm-agent'){
+							if (data.dialogue.channel_name === 'tcm-agent') {
 								this.agent_dialogueList.push(data.dialogue);
 							}
 						}
@@ -318,10 +367,10 @@
 							for (let i = 0; i < data.dialogueList.length; i++) {
 								const dialogue = data.dialogueList[i];
 								this.dialogueList.push(dialogue);
-								if(dialogue.trace_id === this.trace_id){
+								if (dialogue.trace_id === this.trace_id) {
 									uni.hideLoading();
 								}
-								if(dialogue.channel_name ==='tcm-agent'){
+								if (dialogue.channel_name === 'tcm-agent') {
 									this.agent_dialogueList.push(dialogue);
 								}
 							}
@@ -342,15 +391,15 @@
 				this.websocket.onClose(() => {
 					console.log('WebSocket closed');
 					this.websocketConnected = false;
-					if (res.meta.code === 0) {
-						const data = res.data;
-						if (data.dialogue) {
-							this.dialogueList.push(data.dialogue);
-						}
-						if (data.dialogueList) {
-							this.dialogueList.push(...data.dialogueList);
-						}
-					}
+					// if (res.meta.code === 0) {
+					// 	const data = res.data;
+					// 	if (data.dialogue) {
+					// 		this.dialogueList.push(data.dialogue);
+					// 	}
+					// 	if (data.dialogueList) {
+					// 		this.dialogueList.push(...data.dialogueList);
+					// 	}
+					// }
 				});
 
 				this.websocket.onError((error) => {
@@ -371,7 +420,7 @@
 					type: 'text',
 					content: this.inputMessage,
 					user_intent: 'user_ask',
-					uuid:this.uuid,
+					uuid: this.uuid,
 					trace_id: this.trace_id,
 					channel_name: this.llmModel
 					// timestamp: new Date().getTime()
@@ -407,15 +456,21 @@
 					});
 				}
 				this.inputMessage = '';
-				uni.showLoading({title:'思考中'})
-				setTimeout(function(){
+				uni.showLoading({
+					title: '思考中'
+				})
+				setTimeout(function() {
 					uni.hideLoading();
-				},10000);
+				}, 10000);
 			},
 
 			fetchWelcome() {
 				uni.request({
-					url: this.apiBaseUrl+'/api/pub/dialogue/welcome',
+					url: this.getHttpHost() + '/api/pub/dialogue/welcome',
+					method: 'GET',
+					header: {
+					        'Cache-Control': 'no-cache' // 禁用缓存
+					    },
 					// url: 'http://localhost:8086/api/pub/dialogue/welcome',
 					success: (res) => {
 						console.log(res)
@@ -438,7 +493,11 @@
 			},
 			fetchChannel() {
 				uni.request({
-					url: this.apiBaseUrl+'/api/pub/dialogue/channel',
+					url: this.getHttpHost() + '/api/pub/dialogue/channel',
+					method: 'GET',
+					header: {
+					        'Cache-Control': 'no-cache' // 禁用缓存
+					    },
 					// url: 'http://localhost:8086/api/pub/dialogue/channel',
 					success: (res) => {
 						console.log(res)
@@ -452,7 +511,7 @@
 					}
 				});
 			},
-			
+
 			// radioChange(formItem, value) {
 			// 	console.log(formItem)
 			// 	console.log('value=' + value)
@@ -522,22 +581,25 @@
 						});
 					});
 				}
-				uni.showLoading({title:'思考中'})
+				uni.showLoading({
+					title: '思考中'
+				})
 			},
 
 			setLLMmodel() {
 				this.showModelPopup = true; // 点击设置按钮时，显示单选组件弹窗
-				
+
 			},
 			confirmModel() {
 				console.log('Selected llmModel:', this.llmModel);
 				this.showModelPopup = false; // 隐藏单选组件弹窗
 			},
 			generateUUID() {
-			          const timestamp = Date.now().toString(16); // 获取当前时间戳并转换为十六进制
-			          const randomPart = Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0'); // 生成随机数并转换为十六进制，不足8位补0
-			          return `${timestamp}-${randomPart}`;
-			      },
+				const timestamp = Date.now().toString(16); // 获取当前时间戳并转换为十六进制
+				const randomPart = Math.floor(Math.random() * 0x100000000).toString(16).padStart(8,
+					'0'); // 生成随机数并转换为十六进制，不足8位补0
+				return `${timestamp}-${randomPart}`;
+			},
 			radioChange(e) {
 				// 当radio选项变化时，更新selectedModel的值
 				// this.selectedModel = e.detail.value;
@@ -579,12 +641,12 @@
 					})
 				})
 			},
-			isLastBotForm(dialogue){
+			isLastBotForm(dialogue) {
 				const lastDialogue = this.agent_dialogueList[this.agent_dialogueList.length - 1];
 				return dialogue === lastDialogue && lastDialogue.type === 'form';
 				// return lastDialogue.type === 'form';
 			},
-			
+
 		}
 	}
 </script>
@@ -624,6 +686,119 @@
 	.stop-responding:hover {
 		box-shadow: 0 0 10px #aaa;
 	}
+	
+	
+
+/* #ifdef H5 */
+	@media screen and (min-width:650px) {
+		.foot-box {
+			border-top: solid 1px #dde0e2;
+		}
+
+		.container,
+		.container * {
+			/* min-width: 650px; */
+			max-width: 950px;
+		}
+
+		.container {
+			box-shadow: 0 0 5px #e0e1e7;
+			height: calc(100vh - 44px);
+			margin: 22px auto;
+			border-radius: 10px;
+			overflow: hidden;
+			background-color: #FAFAFA;
+		}
+
+		page {
+			background-color: #efefef;
+		}
+
+		.container.header {
+			height: 44px;
+			line-height: 44px;
+			border-bottom: 1px solid #F0F0F0;
+			width: 100vw;
+			justify-content: center;
+			font-weight: 500;
+		}
+		.header-img {
+		    width: 100px; /* 根据需求设置合适的宽度 */
+		    height: auto; /* 保持图片宽高比自适应高度 */
+		    margin-right: 10px; /* 可设置图片与文字之间的间距等，按需调整 */
+		}
+
+		.content {
+			background-color: #f9f9f9;
+			position: relative;
+			max-width: 90%;
+		}
+
+		.foot-box,
+		.foot-box-content,
+		.msg-list,
+		.msg-item,
+		.noData,
+		.textarea-box,
+		.textarea,
+		textarea-box {
+			width: 100% !important;
+		}
+
+		.textarea-box,
+		.textarea,
+		textarea,
+		textarea-box {
+			height: 120px;
+		}
+
+		.foot-box,
+		.textarea-box {
+			background-color: #FFF;
+		}
+
+		.foot-box-content {
+			flex-direction: column;
+			justify-content: center;
+			align-items: flex-end;
+			padding-bottom: 0;
+		}
+
+		.pc-menu {
+			padding: 0 10px;
+		}
+
+		.pc-menu-item {
+			height: 20px;
+			justify-content: center;
+			align-items: center;
+			align-content: center;
+			display: flex;
+			margin-right: 10px;
+			cursor: pointer;
+		}
+
+		.pc-trash {
+			opacity: 0.8;
+		}
+
+		.pc-trash image {
+			height: 15px;
+		}
+
+
+		.textarea-box,
+		.textarea-box * {}
+
+		.send-btn-box.send-btn-tip {
+			color: #919396;
+			margin-right: 8px;
+			font-size: 12px;
+			line-height: 28px;
+		}
+	}
+
+	/* #endif */
 
 	.container {
 		height: 100%;
@@ -640,7 +815,7 @@
 		align-items: center;
 		margin-bottom: 5px;
 		margin-left: 10px;
-		margin-right:10px;
+		margin-right: 10px;
 		/* margin-top:10px; */
 	}
 
@@ -758,6 +933,7 @@
 		background-color: rgba(0, 0, 0, 0.5);
 		z-index: 999;
 	}
+
 	.popup-content {
 		background-color: white;
 		padding: 20px;
@@ -809,18 +985,21 @@
 
 	.foot-box {
 		width: 750rpx;
+		/* width: 100%; */
 		display: flex;
 		flex-direction: column;
 		padding: 10px 0px;
 		background-color: #FFF;
+		/* margin: 0 10rpx; */
 	}
 
 	.foot-box-content {
 		justify-content: space-around;
+		align-items:center
 	}
 
 	.textarea-box {
-		padding: 8px 10px;
+		padding: 8px 0px;
 		background-color: #f9f9f9;
 		border: 1px solid #ff5100;
 		border-radius: 5px;
@@ -848,34 +1027,24 @@
 		color: #bbb;
 		line-height: 18px;
 	}
-
-	.trash,
-	.send {
-		color: #ff5100;
-		width: 50px;
-		height: 30px;
-		justify-content: center;
-		align-items: center;
-		flex-shrink: 0;
-	}
-
-	.trash {
-		width: 30rpx;
+	.send-btn-box {
+		margin-right: 20rpx;
 		margin-left: 10rpx;
 	}
-
 	.menu {
 		justify-content: center;
 		align-items: center;
 		flex-shrink: 0;
+		margin-right: 10rpx;
+		margin-left: 0rpx;
 	}
 
-	.menu-item {
+/* 	.menu-item {
 		width: 30rpx;
 		margin: 0 10rpx;
-	}
+	} */
 
-	.send {
+/* 	.send {
 		color: #FFF;
 		border-radius: 4px;
 		display: flex;
@@ -883,7 +1052,7 @@
 		padding: 0;
 		font-size: 14px;
 		margin-right: 20rpx;
-	}
+	} */
 
 	/* #ifndef APP-NVUE */
 	.send::after {
@@ -896,7 +1065,9 @@
 	.msg-list {
 		height: 0;
 		flex: 1;
-		width: 750rpx;
+		/* width: 750rpx; */
+		width: 100%;
+		 /* max-width: 100%; */
 	}
 
 	.noData {
@@ -926,111 +1097,7 @@
 		line-height: 20px;
 	}
 
-	/* #ifdef H5 */
-	@media screen and (min-width:650px) {
-		.foot-box {
-			border-top: solid 1px #dde0e2;
-		}
-
-		.container,
-		.container * {
-			max-width: 950px;
-		}
-
-		.container {
-			box-shadow: 0 0 5px #e0e1e7;
-			height: calc(100vh - 44px);
-			margin: 22px auto;
-			border-radius: 10px;
-			overflow: hidden;
-			background-color: #FAFAFA;
-		}
-
-		page {
-			background-color: #efefef;
-		}
-
-		.container.header {
-			height: 44px;
-			line-height: 44px;
-			border-bottom: 1px solid #F0F0F0;
-			width: 100vw;
-			justify-content: center;
-			font-weight: 500;
-		}
-
-		.content {
-			background-color: #f9f9f9;
-			position: relative;
-			max-width: 90%;
-		}
-
-		.foot-box,
-		.foot-box-content,
-		.msg-list,
-		.msg-item,
-		.noData,
-		.textarea-box,
-		.textarea,
-		textarea-box {
-			width: 100% !important;
-		}
-
-		.textarea-box,
-		.textarea,
-		textarea,
-		textarea-box {
-			height: 120px;
-		}
-
-		.foot-box,
-		.textarea-box {
-			background-color: #FFF;
-		}
-
-		.foot-box-content {
-			flex-direction: column;
-			justify-content: center;
-			align-items: flex-end;
-			padding-bottom: 0;
-		}
-
-		.pc-menu {
-			padding: 0 10px;
-		}
-
-		.pc-menu-item {
-			height: 20px;
-			justify-content: center;
-			align-items: center;
-			align-content: center;
-			display: flex;
-			margin-right: 10px;
-			cursor: pointer;
-		}
-
-		.pc-trash {
-			opacity: 0.8;
-		}
-
-		.pc-trash image {
-			height: 15px;
-		}
-
-
-		.textarea-box,
-		.textarea-box * {}
-
-		.send-btn-box.send-btn-tip {
-			color: #919396;
-			margin-right: 8px;
-			font-size: 12px;
-			line-height: 28px;
-		}
-	}
-
-	/* #endif */
-	.retries-box {
+		.retries-box {
 		justify-content: center;
 		align-items: center;
 		font-size: 12px;

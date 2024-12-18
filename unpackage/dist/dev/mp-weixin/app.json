@@ -8,5 +8,21 @@
     "navigationBarBackgroundColor": "#F8F8F8",
     "backgroundColor": "#F8F8F8"
   },
-  "usingComponents": {}
+  "permission": {
+    "share": {
+      "enable": true
+    }
+  },
+  "shareAppMessage": {
+    "title": "中医大模型",
+    "path": "pages/index/index",
+    "imageUrl": "static/logo.png"
+  },
+  "shareTimeline": {
+    "title": "中医大模型",
+    "query": "",
+    "imageUrl": "static/logo.png"
+  },
+  "usingComponents": {},
+  "sitemapLocation": "sitemap.json"
 }

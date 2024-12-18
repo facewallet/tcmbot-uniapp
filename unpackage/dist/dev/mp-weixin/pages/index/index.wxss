@@ -41,7 +41,7 @@ page {
 		align-items: center;
 		margin-bottom: 5px;
 		margin-left: 10px;
-		margin-right:10px;
+		margin-right: 10px;
 		/* margin-top:10px; */
 }
 .bot-speak {
@@ -164,16 +164,19 @@ page {
 }
 .foot-box {
 		width: 750rpx;
+		/* width: 100%; */
 		display: flex;
 		flex-direction: column;
 		padding: 10px 0px;
 		background-color: #FFF;
+		/* margin: 0 10rpx; */
 }
 .foot-box-content {
 		justify-content: space-around;
+		align-items:center
 }
 .textarea-box {
-		padding: 8px 10px;
+		padding: 8px 0px;
 		background-color: #f9f9f9;
 		border: 1px solid #ff5100;
 		border-radius: 5px;
@@ -191,29 +194,24 @@ page {
 		color: #bbb;
 		line-height: 18px;
 }
-.trash,
-	.send {
-		color: #ff5100;
-		width: 50px;
-		height: 30px;
-		justify-content: center;
-		align-items: center;
-		flex-shrink: 0;
-}
-.trash {
-		width: 30rpx;
+.send-btn-box {
+		margin-right: 20rpx;
 		margin-left: 10rpx;
 }
 .menu {
 		justify-content: center;
 		align-items: center;
 		flex-shrink: 0;
+		margin-right: 10rpx;
+		margin-left: 0rpx;
 }
-.menu-item {
+
+/* 	.menu-item {
 		width: 30rpx;
 		margin: 0 10rpx;
-}
-.send {
+	} */
+
+/* 	.send {
 		color: #FFF;
 		border-radius: 4px;
 		display: flex;
@@ -221,14 +219,16 @@ page {
 		padding: 0;
 		font-size: 14px;
 		margin-right: 20rpx;
-}
+	} */
 .send::after {
 		display: none;
 }
 .msg-list {
 		height: 0;
 		flex: 1;
-		width: 750rpx;
+		/* width: 750rpx; */
+		width: 100%;
+		 /* max-width: 100%; */
 }
 .noData {
 		margin-top: 15px;

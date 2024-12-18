@@ -1292,7 +1292,7 @@ function populateParameters(fromRes, toRes) {
   let _SDKVersion = SDKVersion;
   const hostLanguage = language.replace(/_/g, "-");
   const parameters = {
-    appId: "",
+    appId: "__UNI__C8C80B9",
     appName: "tcmbot-uniapp",
     appVersion: "1.0.0",
     appVersionCode: "100",
@@ -1436,7 +1436,7 @@ const getAppBaseInfo = {
       hostName: _hostName,
       hostSDKVersion: SDKVersion,
       hostTheme: theme,
-      appId: "",
+      appId: "__UNI__C8C80B9",
       appName: "tcmbot-uniapp",
       appVersion: "1.0.0",
       appVersionCode: "100",

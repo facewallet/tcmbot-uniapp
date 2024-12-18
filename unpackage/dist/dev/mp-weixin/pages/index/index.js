@@ -4,9 +4,6 @@ const _sfc_main = {
   data() {
     return {
       uuid: "",
-      host: "localhost:8086",
-      apiBaseUrl: "https://m.tcmbot.com",
-      socketBaseUrl: "wss://m.tcmbot.com",
       trace_id: "",
       dialogueList: [],
       agent_dialogueList: [],
@@ -100,16 +97,6 @@ const _sfc_main = {
   beforeMount() {
   },
   async mounted() {
-    const systemInfo = common_vendor.index.getSystemInfoSync();
-    console.log("-----------------");
-    console.log(systemInfo);
-    if (systemInfo.platform === "web") {
-      this.apiBaseUrl = "https://www.tcmbot.com";
-      this.socketBaseUrl = "wss://www.tcmbot.com";
-    } else {
-      this.apiBaseUrl = "https://m.tcmbot.com";
-      this.socketBaseUrl = "wss://m.tcmbot.com";
-    }
     this.fetchWelcome();
     this.fetchChannel();
     this.connectWebSocket();
@@ -125,12 +112,48 @@ const _sfc_main = {
     });
   },
   methods: {
+    getHttpHost() {
+      const systemInfo = common_vendor.index.getSystemInfoSync();
+      const isPCBrowser = systemInfo.uniPlatform === "web" && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
+      console.log("getHttpHost");
+      console.log(systemInfo.platform);
+      console.log(systemInfo.userAgent);
+      return isPCBrowser ? "https://www.tcmbot.com" : "https://m.tcmbot.com";
+    },
+    getWebSocketHost() {
+      const systemInfo = common_vendor.index.getSystemInfoSync();
+      systemInfo.uniPlatform === "web" && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
+      console.log("getWebSocketHost");
+      console.log(systemInfo.platform);
+      console.log(systemInfo.userAgent);
+      return "ws://localhost:8086";
+    },
+    // getHttpHost() {
+    // 	const systemInfo = uni.getSystemInfoSync();
+    // 	if (process.env.UNI_PLATFORM === 'h5' && systemInfo.devicePixelRatio === 1 && systemInfo.windowWidth >=
+    // 		1024 && !systemInfo.simulator) {
+    // 		return 'https://www.tcmbot.com';
+    // 	}
+    // 	return 'https://m.tcmbot.com';
+    // },
+    // getWebSocketHost() {
+    // 	const systemInfo = uni.getSystemInfoSync();
+    // 	if (process.env.UNI_PLATFORM === 'h5' && systemInfo.devicePixelRatio === 1 && systemInfo.windowWidth >=
+    // 		1024 && !systemInfo.simulator) {
+    // 		return 'wss://www.tcmbot.com';
+    // 	}
+    // 	return 'wss://m.tcmbot.com';
+    // },
     connectWebSocket() {
       if (this.websocketConnected)
         return;
       this.websocket = common_vendor.index.connectSocket({
-        url: this.socketBaseUrl + "/api/socket/dialogue",
+        url: this.getWebSocketHost() + "/api/socket/dialogue",
         // url: 'ws://localhost:8086/api/socket/dialogue',
+        header: {
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        },
         success: () => {
           console.log("WebSocket connected");
         }
@@ -142,15 +165,15 @@ const _sfc_main = {
         if (this.trace_id === "") {
           common_vendor.index.hideLoading();
         }
-        const res2 = JSON.parse(message.data);
+        const res = JSON.parse(message.data);
         console.log("收到的消息：");
-        console.log(res2);
+        console.log(res);
         const {
           meta,
           data
-        } = res2;
+        } = res;
         if (meta.code === 0) {
-          const data2 = res2.data;
+          const data2 = res.data;
           if (data2.dialogue) {
             console.log("data.dialogue");
             console.log(data2.dialogue);
@@ -184,15 +207,6 @@ const _sfc_main = {
       this.websocket.onClose(() => {
         console.log("WebSocket closed");
         this.websocketConnected = false;
-        if (res.meta.code === 0) {
-          const data = res.data;
-          if (data.dialogue) {
-            this.dialogueList.push(data.dialogue);
-          }
-          if (data.dialogueList) {
-            this.dialogueList.push(...data.dialogueList);
-          }
-        }
       });
       this.websocket.onError((error) => {
         console.error("WebSocket error:", error);
@@ -245,19 +259,26 @@ const _sfc_main = {
         });
       }
       this.inputMessage = "";
-      common_vendor.index.showLoading({ title: "思考中" });
+      common_vendor.index.showLoading({
+        title: "思考中"
+      });
       setTimeout(function() {
         common_vendor.index.hideLoading();
       }, 1e4);
     },
     fetchWelcome() {
       common_vendor.index.request({
-        url: this.apiBaseUrl + "/api/pub/dialogue/welcome",
+        url: this.getHttpHost() + "/api/pub/dialogue/welcome",
+        method: "GET",
+        header: {
+          "Cache-Control": "no-cache"
+          // 禁用缓存
+        },
         // url: 'http://localhost:8086/api/pub/dialogue/welcome',
-        success: (res2) => {
-          console.log(res2);
-          if (res2.data.meta.code === 0) {
-            const data = res2.data.data;
+        success: (res) => {
+          console.log(res);
+          if (res.data.meta.code === 0) {
+            const data = res.data.data;
             if (data.dialogueList) {
               this.dialogueList.push(...data.dialogueList);
             }
@@ -273,12 +294,17 @@ const _sfc_main = {
     },
     fetchChannel() {
       common_vendor.index.request({
-        url: this.apiBaseUrl + "/api/pub/dialogue/channel",
+        url: this.getHttpHost() + "/api/pub/dialogue/channel",
+        method: "GET",
+        header: {
+          "Cache-Control": "no-cache"
+          // 禁用缓存
+        },
         // url: 'http://localhost:8086/api/pub/dialogue/channel',
-        success: (res2) => {
-          console.log(res2);
-          if (res2.data.meta.code === 0) {
-            const data = res2.data.data;
+        success: (res) => {
+          console.log(res);
+          if (res.data.meta.code === 0) {
+            const data = res.data.data;
             this.modelOptions = data.channelList;
           }
         },
@@ -341,7 +367,9 @@ const _sfc_main = {
           });
         });
       }
-      common_vendor.index.showLoading({ title: "思考中" });
+      common_vendor.index.showLoading({
+        title: "思考中"
+      });
     },
     setLLMmodel() {
       this.showModelPopup = true;
@@ -352,7 +380,10 @@ const _sfc_main = {
     },
     generateUUID() {
       const timestamp = Date.now().toString(16);
-      const randomPart = Math.floor(Math.random() * 4294967296).toString(16).padStart(8, "0");
+      const randomPart = Math.floor(Math.random() * 4294967296).toString(16).padStart(
+        8,
+        "0"
+      );
       return `${timestamp}-${randomPart}`;
     },
     radioChange(e) {
@@ -492,7 +523,7 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
     d: common_vendor.o($options.setLLMmodel),
     e: common_vendor.p({
       color: "#ff5100",
-      size: "20px",
+      size: "20",
       type: "bars"
     })
   } : {}, {
@@ -503,14 +534,13 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
     j: common_vendor.o($options.sendSocketMessage),
     k: common_vendor.p({
       color: "#ff5100",
-      type: "paperplane-filled",
-      size: "30"
+      type: "paperplane",
+      size: "24"
     }),
-    l: $data.msgList.length && $data.msgList.length % 2 !== 0 ? "ai正在回复中不能发送" : "",
-    m: $options.footBoxPaddingBottom,
-    n: $data.showModelPopup
+    l: $options.footBoxPaddingBottom,
+    m: $data.showModelPopup
   }, $data.showModelPopup ? {
-    o: common_vendor.f($data.modelOptions, (option, index, i0) => {
+    n: common_vendor.f($data.modelOptions, (option, index, i0) => {
       return {
         a: option.value,
         b: option.disabled === "YES",
@@ -519,10 +549,10 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
         e: index
       };
     }),
-    p: common_vendor.o((...args) => $options.radioChange && $options.radioChange(...args)),
-    q: common_vendor.o((...args) => $options.confirmModel && $options.confirmModel(...args))
+    o: common_vendor.o((...args) => $options.radioChange && $options.radioChange(...args)),
+    p: common_vendor.o((...args) => $options.confirmModel && $options.confirmModel(...args))
   } : {}, {
-    r: $data.isWidescreen
+    q: $data.isWidescreen
   }, $data.isWidescreen ? {} : {});
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render]]);
