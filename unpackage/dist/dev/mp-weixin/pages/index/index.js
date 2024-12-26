@@ -122,11 +122,8 @@ const _sfc_main = {
     },
     getWebSocketHost() {
       const systemInfo = common_vendor.index.getSystemInfoSync();
-      systemInfo.uniPlatform === "web" && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
-      console.log("getWebSocketHost");
-      console.log(systemInfo.platform);
-      console.log(systemInfo.userAgent);
-      return "ws://localhost:8086";
+      const isPCBrowser = systemInfo.uniPlatform === "web" && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
+      return isPCBrowser ? "wss://www.tcmbot.com" : "wss://m.tcmbot.com";
     },
     // getHttpHost() {
     // 	const systemInfo = uni.getSystemInfoSync();

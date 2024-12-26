@@ -290,8 +290,8 @@
 					console.log('getHttpHost')
 					console.log(systemInfo.platform)
 					console.log(systemInfo.userAgent)
-				return isPCBrowser ? 'https://www.tcmbot.com' : 'https://m.tcmbot.com';
-				// return isPCBrowser ? 'https://tcmbot.com' : 'https://tcmbot.com';
+				// return isPCBrowser ? 'https://www.tcmbot.com' : 'https://m.tcmbot.com';
+				return 'http://localhost:8086';
 			},
 			getWebSocketHost() {
 				// 获取系统信息
@@ -299,9 +299,9 @@
 				// 判断是否为PC浏览器且未模拟手机
 				const isPCBrowser = systemInfo.uniPlatform === 'web' && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
 
-					console.log('getWebSocketHost')
-					console.log(systemInfo.platform)
-					console.log(systemInfo.userAgent)
+					// console.log('getWebSocketHost')
+					// console.log(systemInfo.platform)
+					// console.log(systemInfo.userAgent)
 				// return isPCBrowser ? 'wss://www.tcmbot.com' : 'wss://m.tcmbot.com';
 				return 'ws://localhost:8086';
 			},
