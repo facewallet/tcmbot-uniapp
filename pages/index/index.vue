@@ -1,8 +1,9 @@
 <template>
 	<view class="container">
 		<!-- #ifdef H5 -->
-		<view v-if="isWidescreen" class="header">中医机器人Web版
-			<!-- <image src="/static/miniapp.jpg" mode="aspectFit" class="header-img"></image> -->
+		<!-- <view v-if="isWidescreen" class="header">中医机器人Web版 -->
+		<view class="header" style="font-weight: 900;color: #ff5100;justify-content:center;align-items:center;width: 100vw;">中医大模型
+			<image src="/static/miniapp.jpg" mode="aspectFit" class="header-img"></image>
 		</view>
 		<!-- #endif -->
 		<scroll-view :scroll-into-view="scrollIntoView" scroll-y="true" class="msg-list" :enable-flex="true">
@@ -69,7 +70,7 @@
 						placeholder="请输入要发给中医机器人的内容" :maxlength="-1" :adjust-position="false"
 						:disable-default-padding="false" placeholder-class="input-placeholder"></textarea>
 				</view>
-				<view class="send-btn-box">
+				<view class="send-btn-box" style="align-items: center;">
 					<!-- #ifdef H5 -->
 					<text v-if="isWidescreen" class="send-btn-tip">↵ 发送 / shift + ↵ 换行</text>
 					<!-- #endif -->
@@ -231,7 +232,9 @@
 						adjunctKeydown = true;
 					}
 					if (e.keyCode == 13 && !adjunctKeydown) {
-						e.preventDefault()
+						e.preventDefault();
+						//todo4
+						this.sendSocketMessage();
 						// 执行发送
 						// setTimeout(() => {
 						// 	this.beforeSend();
@@ -287,9 +290,9 @@
 				const systemInfo = uni.getSystemInfoSync();
 				// 判断是否为PC浏览器且未模拟手机
 				const isPCBrowser = systemInfo.uniPlatform === 'web' && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
-					console.log('getHttpHost')
-					console.log(systemInfo.platform)
-					console.log(systemInfo.userAgent)
+					// console.log('getHttpHost')
+					// console.log(systemInfo.platform)
+					// console.log(systemInfo.userAgent)
 				// return isPCBrowser ? 'https://www.tcmbot.com' : 'https://m.tcmbot.com';
 				return 'http://localhost:8086';
 			},
@@ -325,7 +328,6 @@
 				if (this.websocketConnected) return;
 				this.websocket = uni.connectSocket({
 					url: this.getWebSocketHost() + '/api/socket/dialogue',
-					// url: 'ws://localhost:8086/api/socket/dialogue',
 					    header: {
 					        'Cache-Control': 'no-cache',
 					        'Pragma': 'no-cache'
@@ -344,8 +346,8 @@
 						uni.hideLoading();
 					}
 					const res = JSON.parse(message.data);
-					console.log("收到的消息：")
-					console.log(res)
+					// console.log("收到的消息：")
+					// console.log(res)
 					const {
 						meta,
 						data
@@ -353,8 +355,8 @@
 					if (meta.code === 0) {
 						const data = res.data;
 						if (data.dialogue) {
-							console.log("data.dialogue")
-							console.log(data.dialogue)
+							// console.log("data.dialogue")
+							// console.log(data.dialogue)
 							this.dialogueList.push(data.dialogue);
 							if (data.dialogue.trace_id === this.trace_id) {
 								uni.hideLoading();
@@ -389,7 +391,7 @@
 				});
 
 				this.websocket.onClose(() => {
-					console.log('WebSocket closed');
+					// console.log('WebSocket closed');
 					this.websocketConnected = false;
 					// if (res.meta.code === 0) {
 					// 	const data = res.data;
@@ -408,7 +410,7 @@
 				});
 
 				this.websocket.onClose(() => {
-					console.log('WebSocket closed');
+					// console.log('WebSocket closed');
 					this.websocketConnected = false;
 				});
 			},
@@ -425,7 +427,7 @@
 					channel_name: this.llmModel
 					// timestamp: new Date().getTime()
 				};
-				console.log(message)
+				// console.log(message)
 				this.dialogueList.push(message);
 				this.inputMessage = '';
 				if (this.websocketConnected) {
@@ -471,9 +473,8 @@
 					header: {
 					        'Cache-Control': 'no-cache' // 禁用缓存
 					    },
-					// url: 'http://localhost:8086/api/pub/dialogue/welcome',
 					success: (res) => {
-						console.log(res)
+						// console.log(res)
 						if (res.data.meta.code === 0) {
 							const data = res.data.data;
 
@@ -498,9 +499,8 @@
 					header: {
 					        'Cache-Control': 'no-cache' // 禁用缓存
 					    },
-					// url: 'http://localhost:8086/api/pub/dialogue/channel',
 					success: (res) => {
-						console.log(res)
+						// console.log(res)
 						if (res.data.meta.code === 0) {
 							const data = res.data.data;
 							this.modelOptions = data.channelList;
@@ -591,7 +591,7 @@
 
 			},
 			confirmModel() {
-				console.log('Selected llmModel:', this.llmModel);
+				// console.log('Selected llmModel:', this.llmModel);
 				this.showModelPopup = false; // 隐藏单选组件弹窗
 			},
 			generateUUID() {
@@ -715,17 +715,18 @@
 		}
 
 		.container.header {
-			height: 44px;
-			line-height: 44px;
+			height: 48px;
+			line-height: 48px;
 			border-bottom: 1px solid #F0F0F0;
 			width: 100vw;
+			font-size: 20px;
 			justify-content: center;
 			font-weight: 500;
 		}
 		.header-img {
-		    width: 100px; /* 根据需求设置合适的宽度 */
-		    height: auto; /* 保持图片宽高比自适应高度 */
-		    margin-right: 10px; /* 可设置图片与文字之间的间距等，按需调整 */
+		    width: 48px; /* 根据需求设置合适的宽度 */
+		    height: 48px; /* 保持图片宽高比自适应高度 */
+		    margin-left: 10px; /* 可设置图片与文字之间的间距等，按需调整 */
 		}
 
 		.content {
@@ -801,13 +802,29 @@
 	/* #endif */
 
 	.container {
-		height: 100%;
+		/* height: 100%; */
 		background-color: #FAFAFA;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		position: relative;
 		/* 给父容器设置相对定位，作为model-popup定位的参照 */
+	}
+	
+	.container.header {
+		height: 48px;
+		line-height: 48px;
+		border-bottom: 1px solid #F0F0F0;
+		width: 100vw;
+		justify-content: center;
+		/* align-items: center; */
+		font-size: 20px;
+		font-weight: 700;
+	}
+	.header-img {
+	    width: 48px; /* 根据需求设置合适的宽度 */
+	    height: 48px; /* 保持图片宽高比自适应高度 */
+	    margin-left: 10px; /* 可设置图片与文字之间的间距等，按需调整 */
 	}
 
 	.dialogue {
@@ -995,7 +1012,7 @@
 
 	.foot-box-content {
 		justify-content: space-around;
-		align-items:center
+		/* align-items:center */
 	}
 
 	.textarea-box {

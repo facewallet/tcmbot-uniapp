@@ -1,22 +1,21 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const common_vendor = require("./common/vendor.js");
+const share = require("./share.js");
 if (!Math) {
   "./pages/index/index.js";
 }
 const _sfc_main = {
   onLaunch: function() {
-    console.log("App Launch");
   },
   onShow: function() {
-    console.log("App Show");
   },
   onHide: function() {
-    console.log("App Hide");
   }
 };
 function createApp() {
   const app = common_vendor.createSSRApp(_sfc_main);
+  app.mixin(share.share);
   return {
     app
   };

@@ -115,9 +115,6 @@ const _sfc_main = {
     getHttpHost() {
       const systemInfo = common_vendor.index.getSystemInfoSync();
       const isPCBrowser = systemInfo.uniPlatform === "web" && !/(iPhone|iPod|iPad|Android|Mobile)/i.test(navigator.userAgent);
-      console.log("getHttpHost");
-      console.log(systemInfo.platform);
-      console.log(systemInfo.userAgent);
       return isPCBrowser ? "https://www.tcmbot.com" : "https://m.tcmbot.com";
     },
     getWebSocketHost() {
@@ -146,7 +143,6 @@ const _sfc_main = {
         return;
       this.websocket = common_vendor.index.connectSocket({
         url: this.getWebSocketHost() + "/api/socket/dialogue",
-        // url: 'ws://localhost:8086/api/socket/dialogue',
         header: {
           "Cache-Control": "no-cache",
           "Pragma": "no-cache"
@@ -163,8 +159,6 @@ const _sfc_main = {
           common_vendor.index.hideLoading();
         }
         const res = JSON.parse(message.data);
-        console.log("收到的消息：");
-        console.log(res);
         const {
           meta,
           data
@@ -172,8 +166,6 @@ const _sfc_main = {
         if (meta.code === 0) {
           const data2 = res.data;
           if (data2.dialogue) {
-            console.log("data.dialogue");
-            console.log(data2.dialogue);
             this.dialogueList.push(data2.dialogue);
             if (data2.dialogue.trace_id === this.trace_id) {
               common_vendor.index.hideLoading();
@@ -202,7 +194,6 @@ const _sfc_main = {
         this.websocketConnected = false;
       });
       this.websocket.onClose(() => {
-        console.log("WebSocket closed");
         this.websocketConnected = false;
       });
       this.websocket.onError((error) => {
@@ -210,7 +201,6 @@ const _sfc_main = {
         this.websocketConnected = false;
       });
       this.websocket.onClose(() => {
-        console.log("WebSocket closed");
         this.websocketConnected = false;
       });
     },
@@ -228,7 +218,6 @@ const _sfc_main = {
         channel_name: this.llmModel
         // timestamp: new Date().getTime()
       };
-      console.log(message);
       this.dialogueList.push(message);
       this.inputMessage = "";
       if (this.websocketConnected) {
@@ -271,9 +260,7 @@ const _sfc_main = {
           "Cache-Control": "no-cache"
           // 禁用缓存
         },
-        // url: 'http://localhost:8086/api/pub/dialogue/welcome',
         success: (res) => {
-          console.log(res);
           if (res.data.meta.code === 0) {
             const data = res.data.data;
             if (data.dialogueList) {
@@ -297,9 +284,7 @@ const _sfc_main = {
           "Cache-Control": "no-cache"
           // 禁用缓存
         },
-        // url: 'http://localhost:8086/api/pub/dialogue/channel',
         success: (res) => {
-          console.log(res);
           if (res.data.meta.code === 0) {
             const data = res.data.data;
             this.modelOptions = data.channelList;
@@ -372,7 +357,6 @@ const _sfc_main = {
       this.showModelPopup = true;
     },
     confirmModel() {
-      console.log("Selected llmModel:", this.llmModel);
       this.showModelPopup = false;
     },
     generateUUID() {

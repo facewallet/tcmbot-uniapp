@@ -1,0 +1,1 @@
+"use strict";const e=require("./common/vendor.js"),t={created(){e.wx$1.showShareMenu({withShareTicket:!0,menus:["shareAppMessage","shareTimeline"]})},onShareAppMessage:e=>({title:"中医大模型",imageUrl:"/static/tcmbot.png"}),onShareTimeline:e=>({title:"中医大模型",imageUrl:"/static/logo.png"})};exports.share=t;

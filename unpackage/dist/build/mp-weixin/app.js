@@ -1,0 +1,1 @@
+"use strict";Object.defineProperty(exports,Symbol.toStringTag,{value:"Module"});const e=require("./common/vendor.js"),n=require("./share.js");Math;const o={onLaunch:function(){},onShow:function(){},onHide:function(){}};function t(){const t=e.createSSRApp(o);return t.mixin(n.share),{app:t}}t().app.mount("#app"),exports.createApp=t;

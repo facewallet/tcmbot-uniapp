@@ -23,5 +23,6 @@
     "query": "",
     "imageUrl": "static/logo.png"
   },
-  "usingComponents": {}
+  "usingComponents": {},
+  "sitemapLocation": "sitemap.json"
 }
